@@ -1,34 +1,22 @@
 use crate::{
-    lexical::{Module, Token},
-    syntax::parser,
+    lexical::lexer,
+    syntax::{File, parser},
 };
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use chumsky::{Parser, error::RichPattern, input::IterInput};
-use logos::Logos as _;
 
-pub fn parse(code: &str, filename: &str) -> Option<Module> {
+pub fn parse(code: &str, filename: &str) -> Option<File> {
     let len = code.len();
 
     let cache = Source::from(code);
 
     // 字句解析
-    let lex = Token::lexer(code).spanned().collect::<Vec<_>>();
-
-    let mut tokens: Vec<(Token, logos::Span)> = Vec::with_capacity(lex.len());
-    let mut lex_errors: Vec<logos::Span> = Vec::new();
-
-    for (token, span) in lex {
-        if let Ok(token) = token {
-            tokens.push((token, span));
-        } else {
-            lex_errors.push(span);
-        }
-    }
+    let tokens = lexer(code);
 
     // 字句解析エラーを表示
-    if !lex_errors.is_empty() {
-        for span in lex_errors {
+    if let Err(errors) = tokens {
+        for span in errors {
             Report::build(ReportKind::Error, (filename, span.clone()))
                 .with_message("Syntax Error: Invalid Token")
                 .with_label(
@@ -40,9 +28,10 @@ pub fn parse(code: &str, filename: &str) -> Option<Module> {
                 .print((filename, &cache))
                 .unwrap();
         }
-        // 字句解析エラーがあった場合、構文解析はスキップ
         return None;
     }
+
+    let tokens = tokens.unwrap();
 
     // 構文解析
     let result = parser().parse(IterInput::new(tokens.into_iter(), len..len));
