@@ -1,17 +1,23 @@
 use logos::Logos;
 
-#[derive(Logos, Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Logos, Debug, PartialEq, PartialOrd, Clone)]
 #[logos(skip r"[ \t\r\n\f]+")] // ホワイトスペースを無視
 #[logos(skip r"//[^\n]*")] // コメントを無視
 pub enum Token {
-    #[token("mcu")]
-    Mcu,
+    #[token("composite")]
+    Composite,
+    #[token("microcontroller")]
+    Microcontroller,
     #[token("interface")]
     Interface,
     #[token("inputs")]
     Inputs,
     #[token("outputs")]
     Outputs,
+    #[token("properties")]
+    Properties,
+    #[token("tooltips")]
+    Tooltips,
     #[token("logic")]
     Logic,
 
@@ -29,10 +35,19 @@ pub enum Token {
     RBracket,
     #[token(";")]
     Semicolon,
+    #[token("=")]
+    Assignment,
 
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Ident(String),
 
-    #[regex(r"[0-9]+", |lex| lex.slice().parse::<u32>().ok())]
-    Number(u32),
+    #[token("null")]
+    Null,
+    #[token("false", |_| false)]
+    #[token("true", |_| true)]
+    Bool(bool),
+    #[regex(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?", |lex| lex.slice().parse::<f64>().unwrap())]
+    Number(f64),
+    #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| lex.slice().to_owned())]
+    String(String),
 }

@@ -46,7 +46,7 @@ pub fn parse(code: &str, filename: &str) -> Option<File> {
                 }
                 match token {
                     RichPattern::Token(t) => expected += &format!("token {:?}", t),
-                    RichPattern::Label(t) => expected += &format!("label {:?}", t),
+                    RichPattern::Label(t) => expected += &format!("{:}", t),
                     RichPattern::Identifier(t) => expected += &format!("identifier {:?}", t),
                     RichPattern::Any => expected += "anything",
                     RichPattern::SomethingElse => expected += "something else",

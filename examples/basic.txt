@@ -1,0 +1,4 @@
+microcontroller BasicExample {
+    name = "Basic Example"
+    description = "description of the microcontroller"
+}
