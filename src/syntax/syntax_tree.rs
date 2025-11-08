@@ -8,15 +8,40 @@ pub enum LiteralValue {
 
 #[expect(dead_code)]
 #[derive(Debug)]
-pub struct Expr {
-    pub value: LiteralValue,
+pub enum BinaryOp {
+    Add(Box<Expr>, Box<Expr>),
+    Sub(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    Div(Box<Expr>, Box<Expr>),
+}
+
+#[expect(dead_code)]
+#[derive(Debug)]
+pub enum UnaryOp {
+    Neg(Box<Expr>),
+}
+
+#[expect(dead_code)]
+#[derive(Debug)]
+pub enum Expr {
+    Ident(String),
+    LiteralValue(LiteralValue),
+    FieldAccess { target: Box<Expr>, field: String },
+    BinaryOp(BinaryOp),
+    UnaryOp(UnaryOp),
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub struct Assignment {
-    pub ident: String,
+    pub target: Expr,
     pub value: Expr,
+}
+
+#[expect(dead_code)]
+#[derive(Debug)]
+pub enum Statement {
+    Assignment(Assignment),
 }
 
 #[expect(dead_code)]
@@ -41,6 +66,7 @@ pub enum MicrocontrollerInterface {
 pub enum MicrocontrollerElement {
     Field(Assignment),
     Interface(Vec<MicrocontrollerInterface>),
+    Logic(Vec<Statement>),
 }
 
 #[expect(dead_code)]

@@ -15,4 +15,8 @@ microcontroller BasicExample {
             }
         }
     }
+
+    logic {
+        outputs.c = inputs.a + 2 * inputs.b
+    }
 }

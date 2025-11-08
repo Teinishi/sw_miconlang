@@ -35,8 +35,22 @@ pub enum Token {
     RBracket,
     #[token(";")]
     Semicolon,
+    #[token(".")]
+    Dot,
     #[token("=")]
     Assignment,
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Multiply,
+    #[token("/")]
+    Divide,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
 
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Ident(String),
