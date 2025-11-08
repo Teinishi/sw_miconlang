@@ -3,7 +3,7 @@ pub use token::Token;
 
 use logos::Logos as _;
 
-pub fn lexer(code: &str) -> Result<Vec<(Token, logos::Span)>, Vec<logos::Span>> {
+pub fn tokenize(code: &str) -> Result<Vec<(Token, logos::Span)>, Vec<logos::Span>> {
     // 字句解析
     let lex = Token::lexer(code).spanned().collect::<Vec<_>>();
 

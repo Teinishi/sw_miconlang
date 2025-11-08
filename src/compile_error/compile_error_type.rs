@@ -1,0 +1,63 @@
+use crate::lexical::Token;
+use ariadne::{Color, Label};
+use chumsky::error::RichPattern;
+use std::ops::Range;
+
+#[derive(Debug)]
+pub enum CompileErrorType<'a> {
+    InvalidToken,
+    UnexpectedToken {
+        expected: String,
+        found: Option<&'a Token>,
+    },
+}
+
+impl<'a> CompileErrorType<'a> {
+    pub fn unexpected_token(e: &'a chumsky::error::Rich<'_, Token, Range<usize>>) -> Self {
+        let mut expected = String::new();
+        for token in e.expected() {
+            if !expected.is_empty() {
+                expected += " or ";
+            }
+            match token {
+                RichPattern::Token(t) => expected += &format!("{:?}", t),
+                RichPattern::Label(t) => expected += &format!("{:}", t),
+                RichPattern::Identifier(t) => expected += &format!("identifier {:?}", t),
+                RichPattern::Any => expected += "anything",
+                RichPattern::SomethingElse => expected += "something else",
+                RichPattern::EndOfInput => expected += "end of file",
+            }
+        }
+
+        Self::UnexpectedToken {
+            expected,
+            found: e.found(),
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::InvalidToken => "Syntax Error: Invalid Token",
+            Self::UnexpectedToken { .. } => "Parse Error: Unexpected Token",
+        }
+    }
+
+    pub(super) fn create_label<'b>(
+        &self,
+        label: Label<(&'b str, Range<usize>)>,
+    ) -> Label<(&'b str, Range<usize>)> {
+        match self {
+            Self::InvalidToken => label
+                .with_message("Unable to parse this word")
+                .with_color(Color::Red),
+            Self::UnexpectedToken { expected, found } => {
+                let label_msg = if found.is_none() {
+                    format!("Expected {}, but file ended", expected)
+                } else {
+                    format!("Expected {}", expected)
+                };
+                label.with_message(label_msg).with_color(Color::Red)
+            }
+        }
+    }
+}

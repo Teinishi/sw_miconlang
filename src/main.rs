@@ -1,4 +1,5 @@
 mod ast;
+mod compile_error;
 mod lexical;
 mod syntax;
 
