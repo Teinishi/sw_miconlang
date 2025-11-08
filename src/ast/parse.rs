@@ -1,12 +1,12 @@
 use crate::{
     lexical::lexer,
-    syntax::{File, parser},
+    syntax::{File, Spanned, parser},
 };
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 use chumsky::{Parser, error::RichPattern, input::IterInput};
 
-pub fn parse(code: &str, filename: &str) -> Option<File> {
+pub fn parse(code: &str, filename: &str) -> Option<Spanned<File>> {
     let len = code.len();
 
     let cache = Source::from(code);

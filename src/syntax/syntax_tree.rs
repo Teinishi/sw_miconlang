@@ -1,5 +1,12 @@
 #[expect(dead_code)]
 #[derive(Debug)]
+pub struct Spanned<T> {
+    pub inner: T,
+    pub span: std::ops::Range<usize>,
+}
+
+#[expect(dead_code)]
+#[derive(Debug)]
 pub enum LiteralValue {
     Bool(bool),
     Number(f64),
@@ -9,16 +16,16 @@ pub enum LiteralValue {
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum BinaryOp {
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
+    Add(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
+    Sub(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
+    Mul(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
+    Div(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum UnaryOp {
-    Neg(Box<Expr>),
+    Neg(Box<Spanned<Expr>>),
 }
 
 #[expect(dead_code)]
@@ -26,7 +33,7 @@ pub enum UnaryOp {
 pub enum Expr {
     Ident(String),
     LiteralValue(LiteralValue),
-    FieldAccess { target: Box<Expr>, field: String },
+    FieldAccess(Box<Spanned<Expr>>, String),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),
 }
@@ -34,14 +41,14 @@ pub enum Expr {
 #[expect(dead_code)]
 #[derive(Debug)]
 pub struct Assignment {
-    pub target: Expr,
-    pub value: Expr,
+    pub target: Spanned<Expr>,
+    pub value: Spanned<Expr>,
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum Statement {
-    Assignment(Assignment),
+    Assignment(Spanned<Assignment>),
 }
 
 #[expect(dead_code)]
@@ -49,24 +56,22 @@ pub enum Statement {
 pub struct MicrocontrollerInterfaceNode {
     pub name: String,
     pub type_name: String,
-    pub fields: Option<Vec<Assignment>>,
+    pub fields: Option<Vec<Spanned<Assignment>>>,
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum MicrocontrollerInterface {
-    Inputs(Vec<MicrocontrollerInterfaceNode>),
-    Outputs(Vec<MicrocontrollerInterfaceNode>),
-    Properties,
-    Tooltips,
+    Inputs(Vec<Spanned<MicrocontrollerInterfaceNode>>),
+    Outputs(Vec<Spanned<MicrocontrollerInterfaceNode>>),
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum MicrocontrollerElement {
-    Field(Assignment),
-    Interface(Vec<MicrocontrollerInterface>),
-    Logic(Vec<Statement>),
+    Field(Spanned<Assignment>),
+    Interface(Vec<Spanned<MicrocontrollerInterface>>),
+    Logic(Vec<Spanned<Statement>>),
 }
 
 #[expect(dead_code)]
@@ -74,12 +79,12 @@ pub enum MicrocontrollerElement {
 pub enum Element {
     Microcontroller {
         name: String,
-        elements: Vec<MicrocontrollerElement>,
+        elements: Vec<Spanned<MicrocontrollerElement>>,
     },
 }
 
 #[expect(dead_code)]
 #[derive(Debug)]
 pub struct File {
-    pub elements: Vec<Element>,
+    pub elements: Vec<Spanned<Element>>,
 }

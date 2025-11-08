@@ -12,7 +12,8 @@ use chumsky::{
     select,
 };
 
-pub fn parser<'src, I>() -> impl Parser<'src, I, File, extra::Err<Rich<'src, I::Token, I::Span>>>
+pub fn parser<'src, I>()
+-> impl Parser<'src, I, Spanned<File>, extra::Err<Rich<'src, I::Token, I::Span>>>
 where
     I: Input<'src, Token = Token, Span = std::ops::Range<usize>>,
 {
@@ -28,46 +29,66 @@ where
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
-        let atom = choice((bool_literal, number_literal, string_literal))
-            .map(Expr::LiteralValue)
-            .or(just(Token::Inputs).map(|_| Expr::Ident("inputs".to_owned())))
-            .or(just(Token::Outputs).map(|_| Expr::Ident("outputs".to_owned())))
-            .or(ident.map(Expr::Ident))
-            .or(parenthesized);
+        let atom = choice((
+            choice((bool_literal, number_literal, string_literal)).map_with(|value, e| Spanned {
+                inner: Expr::LiteralValue(value),
+                span: e.span(),
+            }),
+            just(Token::Inputs).map_with(|_, e| Spanned {
+                inner: Expr::Ident("inputs".to_owned()),
+                span: e.span(),
+            }),
+            just(Token::Outputs).map_with(|_, e| Spanned {
+                inner: Expr::Ident("outputs".to_owned()),
+                span: e.span(),
+            }),
+            ident.map_with(|name, e| Spanned {
+                inner: Expr::Ident(name),
+                span: e.span(),
+            }),
+            parenthesized,
+        ));
 
-        let field_access = atom.clone().foldl(
+        let field_access = atom.clone().foldl_with(
             just(Token::Dot).ignore_then(ident).repeated(),
-            |lhs, rhs| Expr::FieldAccess {
-                target: Box::new(lhs),
-                field: rhs,
+            |lhs, rhs, e| Spanned {
+                inner: Expr::FieldAccess(Box::new(lhs), rhs),
+                span: e.span(),
             },
         );
 
         let unary = just(Token::Minus)
             .repeated()
-            .foldr(field_access, |_op, rhs| {
-                Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs)))
+            .foldr_with(field_access, |_op, rhs, e| Spanned {
+                inner: Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs))),
+                span: e.span(),
             });
 
-        let binary_1 = unary.clone().foldl(
+        let binary_1 = unary.clone().foldl_with(
             choice((just(Token::Multiply), just(Token::Divide)))
                 .then(unary)
                 .repeated(),
-            |lhs, (op, rhs)| match op {
-                Token::Multiply => Expr::BinaryOp(BinaryOp::Mul(Box::new(lhs), Box::new(rhs))),
-                Token::Divide => Expr::BinaryOp(BinaryOp::Div(Box::new(lhs), Box::new(rhs))),
-                _ => unreachable!(),
+            |lhs, (op, rhs), e| Spanned {
+                inner: match op {
+                    Token::Multiply => Expr::BinaryOp(BinaryOp::Mul(Box::new(lhs), Box::new(rhs))),
+                    Token::Divide => Expr::BinaryOp(BinaryOp::Div(Box::new(lhs), Box::new(rhs))),
+                    _ => unreachable!(),
+                },
+                span: e.span(),
             },
         );
 
-        binary_1.clone().foldl(
+        binary_1.clone().foldl_with(
             choice((just(Token::Plus), just(Token::Minus)))
                 .then(binary_1)
                 .repeated(),
-            |lhs, (op, rhs)| match op {
-                Token::Plus => Expr::BinaryOp(BinaryOp::Add(Box::new(lhs), Box::new(rhs))),
-                Token::Minus => Expr::BinaryOp(BinaryOp::Sub(Box::new(lhs), Box::new(rhs))),
-                _ => unreachable!(),
+            |lhs, (op, rhs), e| Spanned {
+                inner: match op {
+                    Token::Plus => Expr::BinaryOp(BinaryOp::Add(Box::new(lhs), Box::new(rhs))),
+                    Token::Minus => Expr::BinaryOp(BinaryOp::Sub(Box::new(lhs), Box::new(rhs))),
+                    _ => unreachable!(),
+                },
+                span: e.span(),
             },
         )
     })
@@ -78,12 +99,18 @@ where
         .clone()
         .then_ignore(just(Token::Assignment))
         .then(expr)
-        .map(|(target, value)| Assignment { target, value });
+        .map_with(|(target, value), e| Spanned {
+            inner: Assignment { target, value },
+            span: e.span(),
+        });
 
     // 文
     let statement = assignment
         .clone()
-        .map(Statement::Assignment)
+        .map_with(|assignment, e| Spanned {
+            inner: Statement::Assignment(assignment),
+            span: e.span(),
+        })
         .labelled("statement");
 
     // name: type { field = expr }
@@ -96,10 +123,13 @@ where
                 .then_ignore(just(Token::RBrace))
                 .or_not(),
         )
-        .map(|((name, type_name), fields)| MicrocontrollerInterfaceNode {
-            name,
-            type_name,
-            fields,
+        .map_with(|((name, type_name), fields), e| Spanned {
+            inner: MicrocontrollerInterfaceNode {
+                name,
+                type_name,
+                fields,
+            },
+            span: e.span(),
         });
 
     // inputs {...}
@@ -107,7 +137,10 @@ where
         .ignore_then(just(Token::LBrace))
         .ignore_then(interface_node.clone().repeated().collect::<Vec<_>>())
         .then_ignore(just(Token::RBrace))
-        .map(MicrocontrollerInterface::Inputs)
+        .map_with(|nodes, e| Spanned {
+            inner: MicrocontrollerInterface::Inputs(nodes),
+            span: e.span(),
+        })
         .labelled("inputs");
 
     // outputs {...}
@@ -115,7 +148,10 @@ where
         .ignore_then(just(Token::LBrace))
         .ignore_then(interface_node.repeated().collect::<Vec<_>>())
         .then_ignore(just(Token::RBrace))
-        .map(MicrocontrollerInterface::Outputs)
+        .map_with(|nodes, e| Spanned {
+            inner: MicrocontrollerInterface::Outputs(nodes),
+            span: e.span(),
+        })
         .labelled("outputs");
 
     // interface {...}
@@ -123,7 +159,10 @@ where
         .ignore_then(just(Token::LBrace))
         .ignore_then(choice((inputs, outputs)).repeated().collect::<Vec<_>>())
         .then_ignore(just(Token::RBrace))
-        .map(MicrocontrollerElement::Interface)
+        .map_with(|interface, e| Spanned {
+            inner: MicrocontrollerElement::Interface(interface),
+            span: e.span(),
+        })
         .labelled("interface");
 
     // logic {...}
@@ -131,7 +170,10 @@ where
         .ignore_then(just(Token::LBrace))
         .ignore_then(statement.repeated().collect::<Vec<_>>())
         .then_ignore(just(Token::RBrace))
-        .map(MicrocontrollerElement::Logic)
+        .map_with(|statements, e| Spanned {
+            inner: MicrocontrollerElement::Logic(statements),
+            span: e.span(),
+        })
         .labelled("logic");
 
     // microcontroller Name {...}
@@ -140,7 +182,10 @@ where
         .then_ignore(just(Token::LBrace))
         .then(
             choice((
-                assignment.map(MicrocontrollerElement::Field),
+                assignment.map_with(|assignment, e| Spanned {
+                    inner: MicrocontrollerElement::Field(assignment),
+                    span: e.span(),
+                }),
                 microcontroller_interface,
                 logic,
             ))
@@ -148,10 +193,16 @@ where
             .collect::<Vec<_>>(),
         )
         .then_ignore(just(Token::RBrace))
-        .map(|(name, elements)| Element::Microcontroller { name, elements })
+        .map_with(|(name, elements), e| Spanned {
+            inner: Element::Microcontroller { name, elements },
+            span: e.span(),
+        })
         .labelled("microcontroller");
 
     let element = microcontroller.labelled("element");
 
-    element.repeated().collect().map(|el| File { elements: el })
+    element.repeated().collect().map_with(|el, e| Spanned {
+        inner: File { elements: el },
+        span: e.span(),
+    })
 }
