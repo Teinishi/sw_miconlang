@@ -1,25 +1,30 @@
 #![warn(unused_extern_crates)]
 
-/*mod ast;
+mod ast;
 mod compile_error;
 mod lexical;
-mod semantic;
-mod syntax;*/
 mod microcontroller;
+mod semantic;
+mod syntax;
 mod xml_schema;
 
-/*use ast::parse;
-use semantic::semantic_analyze;*/
+#[expect(unused)]
+use ast::parse;
+#[expect(unused)]
+use semantic::analyze_file;
+#[expect(unused)]
 use std::{
-    //env,
+    env,
     fs::File,
-    io::Write as _,
+    io::{Read as _, Write as _},
     rc::Rc,
 };
 
+#[expect(unused)]
 use crate::microcontroller::{
     Component, ComponentPosition, InputNode, Link, Microcontroller, Node, NodePosition, NodeType,
     OutputNode, PositionedComponent, PositionedMicrocontroller, PositionedNode,
+    UnpositionedMicrocontroller,
 };
 
 fn main() {
@@ -27,16 +32,14 @@ fn main() {
     let mut f = File::open(&filename).expect("file not found");
     let mut content = String::new();
     f.read_to_string(&mut content)
-        .expect("something went wrong reading the file");*/
+        .expect("something went wrong reading the file");
 
-    /*
     // 読み込んだファイルをパース
     let result = parse(&content, &filename);
     dbg!(&result);
     if let Some(tree) = &result {
-        semantic_analyze(tree);
-    }
-    */
+        let _ = analyze_file(tree);
+    }*/
 
     /*
     // 読み込んだファイルを input.xml に書き出す
@@ -66,20 +69,27 @@ fn main() {
         NodeType::Number,
         NodePosition::new(0, 1),
     ));
-    let add = Rc::new(Component::Add {
+    let div = Rc::new(Component::Divide {
         input_a: Some(Link::node(&input_a)),
         input_b: Some(Link::node(&input_b)),
     });
-    let output = Rc::new(OutputNode::new(
+    let output_value = Rc::new(OutputNode::new(
         "Output".to_owned(),
         "The input signal to be processed.".to_owned(),
         NodeType::Number,
         NodePosition::new(0, 2),
-        Some(Link::component(&add, 0)),
+        Some(Link::component(&div, 0)),
+    ));
+    let output_div0 = Rc::new(OutputNode::new(
+        "Div0".to_owned(),
+        "The input signal to be processed.".to_owned(),
+        NodeType::Bool,
+        NodePosition::new(0, 3),
+        Some(Link::component(&div, 1)),
     ));
 
-    let mc: PositionedMicrocontroller = Microcontroller {
-        name: "This is name".to_owned(),
+    /*let mc: PositionedMicrocontroller = Microcontroller {
+        name: "Generated Microcontroller".to_owned(),
         description: "This is description".to_owned(),
         width: 1,
         length: 3,
@@ -101,12 +111,25 @@ fn main() {
             inner: add,
             position: ComponentPosition::new(5, -1),
         }],
+    };*/
+    let mc: UnpositionedMicrocontroller = Microcontroller {
+        name: "Generated Microcontroller".to_owned(),
+        description: "This is description".to_owned(),
+        width: 1,
+        length: 3,
+        nodes: vec![
+            Node::Input(input_a),
+            Node::Input(input_b),
+            Node::Output(output_value),
+            Node::Output(output_div0),
+        ],
+        components: vec![div],
     };
 
     let mc_xml: Result<
         xml_schema::Microprocessor,
         xml_schema::conversion::MicroprocessorConversionError,
-    > = (&mc).try_into();
+    > = (&mc.auto_layout()).try_into();
     if let Err(err) = mc_xml {
         dbg!(err);
         return;

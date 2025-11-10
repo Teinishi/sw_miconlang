@@ -1,6 +1,9 @@
+use derive_more::Deref;
+
 #[expect(dead_code)]
-#[derive(Debug)]
+#[derive(Deref, Debug)]
 pub struct Spanned<T> {
+    #[deref]
     pub inner: T,
     pub span: std::ops::Range<usize>,
 }

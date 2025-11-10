@@ -3,8 +3,9 @@ use super::OptionalLink;
 use derive_more::Deref;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use std::rc::Rc;
+use strum::EnumIs;
 
-#[derive(TryFromPrimitive, IntoPrimitive, Clone, Copy, Debug)]
+#[derive(TryFromPrimitive, IntoPrimitive, EnumIs, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum NodeMode {
     Output = 0,

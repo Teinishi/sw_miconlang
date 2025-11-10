@@ -10,7 +10,7 @@ pub use node::{InputNode, Node, NodeMode, NodePosition, NodeType, OutputNode};
 use derive_more::Deref;
 use std::rc::Rc;
 
-pub type UnpositionedMicrocontroller = Microcontroller<Node, Component>;
+pub type UnpositionedMicrocontroller = Microcontroller<Node, Rc<Component>>;
 pub type PositionedMicrocontroller = Microcontroller<PositionedNode, PositionedComponent>;
 
 #[derive(Debug)]
