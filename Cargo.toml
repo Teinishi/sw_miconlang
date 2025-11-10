@@ -6,7 +6,10 @@ edition = "2024"
 [dependencies]
 ariadne = "0.6.0"
 chumsky = "0.11.1"
+derive_more = { version = "2.0.1", features = ["deref"] }
 logos = "0.15.1"
 natord = "1.0.9"
+num_enum = "0.7.5"
 quick-xml = { version = "0.38.3", features = ["serialize"] }
 serde = { version = "1.0.228", features = ["derive"] }
+strum = { version = "0.27.2", features = ["derive"] }

@@ -3,16 +3,16 @@ use super::ComponentPos;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-#[derive(Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct ComponentObject {
-    id: u32,
-    attrs: Option<HashMap<String, String>>,
+    pub id: u32,
+    pub attrs: Option<HashMap<String, String>>,
 
-    pos: Option<ComponentPos>,
-    inc: Option<ObjectIn>,
-    items: Option<ObjectItems>,
-    in_map: BTreeMap<u32, ObjectIn>,
-    value_list: Vec<(ObjectValueTag, ObjectValue)>,
+    pub pos: Option<ComponentPos>,
+    pub inc: Option<ObjectInput>,
+    pub items: Option<ObjectItems>,
+    pub in_map: BTreeMap<usize, ObjectInput>,
+    pub value_list: Vec<(ObjectValueTag, ObjectValue)>,
 }
 
 impl<'de> Deserialize<'de> for ComponentObject {
@@ -50,7 +50,7 @@ impl<'de> Deserialize<'de> for ComponentObject {
                         continue;
                     }
 
-                    if let Some(i) = key.strip_prefix("in").and_then(|i| i.parse::<u32>().ok()) {
+                    if let Some(i) = key.strip_prefix("in").and_then(|i| i.parse::<usize>().ok()) {
                         if in_map.contains_key(&i) {
                             return Err(A::Error::duplicate_field("in_"));
                         }
@@ -150,16 +150,16 @@ impl Serialize for ComponentObject {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
-pub struct ObjectIn {
+pub struct ObjectInput {
     #[serde(rename = "@component_id", skip_serializing_if = "Option::is_none")]
-    component_id: Option<u32>,
+    pub component_id: Option<u32>,
     #[serde(rename = "@node_index", skip_serializing_if = "Option::is_none")]
-    node_index: Option<u32>,
+    pub node_index: Option<usize>,
 }
 
-#[derive(Hash, PartialEq, Eq, Debug)]
+#[derive(Hash, PartialEq, Eq, Clone, Debug)]
 pub enum ObjectValueTag {
     V,
     N,
@@ -201,7 +201,7 @@ impl ObjectValueTag {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectValue {
     #[serde(rename = "@text", skip_serializing_if = "Option::is_none")]
@@ -210,13 +210,13 @@ pub struct ObjectValue {
     value: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectItems {
     i: Vec<ObjectItem>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ObjectItem {
     #[serde(rename = "@l")]

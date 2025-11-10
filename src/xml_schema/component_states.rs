@@ -2,9 +2,9 @@ use super::ComponentObject;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct ComponentStates {
-    c: Vec<(String, ComponentObject)>,
+    pub c: Vec<(String, ComponentObject)>,
 }
 
 impl<'de> Deserialize<'de> for ComponentStates {

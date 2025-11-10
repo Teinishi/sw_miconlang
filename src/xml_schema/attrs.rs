@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct Attrs {
-    inner: Option<HashMap<String, String>>,
+    pub inner: Option<HashMap<String, String>>,
 }
 
 impl<'de> Deserialize<'de> for Attrs {
@@ -21,9 +21,7 @@ impl<'de> Deserialize<'de> for Attrs {
             .filter(|(k, _)| k.starts_with('@'))
             .map(|(k, v)| (k.trim_start_matches('@').to_string(), v))
             .collect();
-        Ok(Self {
-            inner: Some(attrs),
-        })
+        Ok(Self { inner: Some(attrs) })
     }
 }
 
