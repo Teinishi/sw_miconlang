@@ -2,7 +2,7 @@ use super::{
     Attrs, ComponentStates, Components, Group, Microprocessor, Node, NodeItem, NodePos, Nodes,
 };
 use crate::{
-    microcontroller::{self, Link, NodeMode, PositionedMicrocontroller},
+    microcontroller::{self, Link, PositionedMicrocontroller},
     xml_schema::{ComponentItem, ComponentObject, ComponentPos, component_object::ObjectInput},
 };
 
@@ -153,13 +153,9 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             });
 
             // <components_bridge> に追加
-            let component_type = match node.mode() {
-                NodeMode::Input => Some(2),
-                NodeMode::Output => Some(3),
-            };
             let in_map = BTreeMap::new();
             node_components.push(ComponentItem {
-                component_type,
+                component_type: node.microcontroller_bridge_type(),
                 object: ComponentObject {
                     id,
                     pos: option_component_pos(node.component_position.clone()),

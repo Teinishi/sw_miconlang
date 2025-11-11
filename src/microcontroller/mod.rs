@@ -5,6 +5,7 @@ mod node;
 
 pub use component::Component;
 pub use link::{Link, OptionalLink};
+#[expect(unused_imports)]
 pub use node::{InputNode, Node, NodeMode, NodePosition, NodeType, OutputNode};
 
 use derive_more::Deref;

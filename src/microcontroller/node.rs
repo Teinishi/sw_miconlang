@@ -138,4 +138,19 @@ impl Node {
             Self::Output(n) => &n.position,
         }
     }
+
+    pub fn microcontroller_bridge_type(&self) -> Option<u8> {
+        match (self.mode(), self.node_type()) {
+            (NodeMode::Input, NodeType::Bool) => None,
+            (NodeMode::Output, NodeType::Bool) => Some(1),
+            (NodeMode::Input, NodeType::Number) => Some(2),
+            (NodeMode::Output, NodeType::Number) => Some(3),
+            (NodeMode::Input, NodeType::Composite) => Some(4),
+            (NodeMode::Output, NodeType::Composite) => Some(5),
+            (NodeMode::Input, NodeType::Video) => Some(6),
+            (NodeMode::Output, NodeType::Video) => Some(7),
+            (NodeMode::Input, NodeType::Audio) => Some(8),
+            (NodeMode::Output, NodeType::Audio) => Some(9),
+        }
+    }
 }

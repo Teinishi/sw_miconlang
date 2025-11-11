@@ -69,7 +69,6 @@ pub enum MicrocontrollerInterface {
     Outputs(Vec<Spanned<MicrocontrollerInterfaceNode>>),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum MicrocontrollerElement {
     Field(Spanned<Assignment>),
@@ -77,7 +76,6 @@ pub enum MicrocontrollerElement {
     Logic(Vec<Spanned<Statement>>),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum Element {
     Microcontroller {
@@ -86,7 +84,6 @@ pub enum Element {
     },
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub struct File {
     pub elements: Vec<Spanned<Element>>,
