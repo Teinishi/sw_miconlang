@@ -69,16 +69,29 @@ fn main() {
         NodeType::Number,
         NodePosition::new(0, 1),
     ));
-    let div = Rc::new(Component::Divide {
+
+    let add = Rc::new(Component::Add {
         input_a: Some(Link::node(&input_a)),
         input_b: Some(Link::node(&input_b)),
     });
+    let abs = Rc::new(Component::Abs {
+        input: Some(Link::component(&add, 0)),
+    });
+    let mul = Rc::new(Component::Multiply {
+        input_a: Some(Link::component(&add, 0)),
+        input_b: Some(Link::component(&abs, 0)),
+    });
+    let div = Rc::new(Component::Divide {
+        input_a: None,
+        input_b: None,
+    });
+
     let output_value = Rc::new(OutputNode::new(
         "Output".to_owned(),
         "The input signal to be processed.".to_owned(),
         NodeType::Number,
         NodePosition::new(0, 2),
-        Some(Link::component(&div, 0)),
+        Some(Link::component(&mul, 0)),
     ));
     let output_div0 = Rc::new(OutputNode::new(
         "Div0".to_owned(),
@@ -88,30 +101,6 @@ fn main() {
         Some(Link::component(&div, 1)),
     ));
 
-    /*let mc: PositionedMicrocontroller = Microcontroller {
-        name: "Generated Microcontroller".to_owned(),
-        description: "This is description".to_owned(),
-        width: 1,
-        length: 3,
-        nodes: vec![
-            PositionedNode {
-                inner: Node::Input(input_a),
-                component_position: ComponentPosition::new(0, 0),
-            },
-            PositionedNode {
-                inner: Node::Input(input_b),
-                component_position: ComponentPosition::new(0, -2),
-            },
-            PositionedNode {
-                inner: Node::Output(output),
-                component_position: ComponentPosition::new(10, 0),
-            },
-        ],
-        components: vec![PositionedComponent {
-            inner: add,
-            position: ComponentPosition::new(5, -1),
-        }],
-    };*/
     let mc: UnpositionedMicrocontroller = Microcontroller {
         name: "Generated Microcontroller".to_owned(),
         description: "This is description".to_owned(),
@@ -123,7 +112,7 @@ fn main() {
             Node::Output(output_value),
             Node::Output(output_div0),
         ],
-        components: vec![div],
+        components: vec![add, abs, mul, div],
     };
 
     let mc_xml: Result<
