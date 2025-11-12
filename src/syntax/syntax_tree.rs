@@ -11,8 +11,11 @@ pub struct Spanned<T> {
 pub enum LiteralValue {
     Bool(bool),
     Int(i64),
+    #[expect(dead_code)]
     Float(f64),
     String(String),
+    #[expect(dead_code)]
+    Tuple(Vec<LiteralValue>),
 }
 
 #[expect(dead_code)]
@@ -52,7 +55,6 @@ pub enum Statement {
     Assignment(Spanned<Assignment>),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub struct MicrocontrollerInterfaceNode {
     pub name: String,
@@ -60,7 +62,6 @@ pub struct MicrocontrollerInterfaceNode {
     pub fields: Option<Vec<Spanned<Assignment>>>,
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum MicrocontrollerInterface {
     Inputs(Vec<Spanned<MicrocontrollerInterfaceNode>>),

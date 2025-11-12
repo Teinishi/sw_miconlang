@@ -1,40 +1,16 @@
+mod field;
+mod interface;
+mod value_type;
 use crate::{
-    compile_error::{CompileError, CompileErrorType},
+    compile_error::CompileError,
     microcontroller::{Microcontroller, UnpositionedMicrocontroller},
-    syntax::{self, Assignment, Expr, LiteralValue, Spanned},
+    syntax::{self, Assignment, Spanned},
 };
+use field::{MutField, analyze_field};
+use interface::analyze_microcontroller_interfaces;
+pub use value_type::ValueType;
 
-use std::{collections::HashMap, ops::RangeInclusive};
-
-#[derive(Debug)]
-pub enum ValueType {
-    Bool,
-    Int,
-    Float,
-    String,
-}
-
-impl From<&LiteralValue> for ValueType {
-    fn from(value: &LiteralValue) -> Self {
-        match value {
-            LiteralValue::Bool(_) => Self::Bool,
-            LiteralValue::Int(_) => Self::Int,
-            LiteralValue::Float(_) => Self::Float,
-            LiteralValue::String(_) => Self::String,
-        }
-    }
-}
-
-impl std::fmt::Display for ValueType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Bool => write!(f, "bool"),
-            Self::Int => write!(f, "int"),
-            Self::Float => write!(f, "float"),
-            Self::String => write!(f, "string"),
-        }
-    }
-}
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct FileAnalyzeResult<'a, 'b> {
@@ -97,8 +73,12 @@ fn analyze_microcontroller<'a, 'b>(
                     errors.push(err);
                 }
             }
-            syntax::MicrocontrollerElement::Interface(interfaces) => {}
-            syntax::MicrocontrollerElement::Logic(statements) => {}
+            syntax::MicrocontrollerElement::Interface(interfaces) => {
+                analyze_microcontroller_interfaces(interfaces, &mut mc, filename, errors);
+            }
+            syntax::MicrocontrollerElement::Logic(statements) => {
+                dbg!(&statements);
+            }
         }
     }
 
@@ -110,91 +90,11 @@ fn analyze_microcontroller_field<'a, 'b>(
     mc: &mut UnpositionedMicrocontroller,
     filename: &'a str,
 ) -> Result<(), CompileError<'a, 'b>> {
-    let target = &assignment.target.inner;
-    let target_span = &assignment.target.span;
-    let value = &assignment.value.inner;
-    let value_span = &assignment.value.span;
-
-    let mut mut_target = if let Expr::Ident(ident) = target {
-        match ident.as_str() {
-            "name" => MutField::String(&mut mc.name),
-            "description" => MutField::String(&mut mc.description),
-            "width" => MutField::RangedU8(&mut mc.width, 1..=6),
-            "length" => MutField::RangedU8(&mut mc.length, 1..=6),
-            _ => {
-                return Err(CompileError::new(
-                    filename,
-                    target_span.clone(),
-                    CompileErrorType::UnknownField { ident },
-                ));
-            }
-        }
-    } else {
-        return Err(CompileError::new(
-            filename,
-            target_span.clone(),
-            CompileErrorType::InvalidAssignment,
-        ));
-    };
-
-    if let Expr::LiteralValue(value) = value {
-        mut_target
-            .assign_literal(value)
-            .map_err(|err| CompileError::new(filename, value_span.clone(), err))?;
-    } else {
-        return Err(CompileError::new(
-            filename,
-            value_span.clone(),
-            CompileErrorType::LiteralExpected,
-        ));
-    }
-
-    Ok(())
-}
-
-#[derive(Debug)]
-enum MutField<'a> {
-    Bool(&'a mut bool),
-    RangedU8(&'a mut u8, RangeInclusive<i64>),
-    String(&'a mut String),
-}
-
-impl<'a> MutField<'a> {
-    fn expected_type(&self) -> ValueType {
-        match self {
-            Self::Bool(_) => ValueType::Bool,
-            Self::RangedU8(_, _) => ValueType::Int,
-            Self::String(_) => ValueType::String,
-        }
-    }
-
-    fn assign_literal<'b>(&'a mut self, value: &LiteralValue) -> Result<(), CompileErrorType<'b>> {
-        let expected_type = self.expected_type();
-        match (self, value) {
-            (Self::Bool(p), LiteralValue::Bool(v)) => {
-                **p = *v;
-            }
-            (Self::RangedU8(p, range), LiteralValue::Int(v)) => {
-                if !range.contains(v) {
-                    return Err(CompileErrorType::OutOfBounds {
-                        bounds: range.clone(),
-                    });
-                }
-                **p = (*v)
-                    .try_into()
-                    .map_err(|_| CompileErrorType::OutOfBounds { bounds: 0..=255 })?;
-            }
-            (Self::String(p), LiteralValue::String(v)) => {
-                **p = v.clone();
-            }
-            _ => {
-                return Err(CompileErrorType::IncompatibleTypes {
-                    expected_type,
-                    found_type: value.into(),
-                });
-            }
-        }
-
-        Ok(())
-    }
+    analyze_field(assignment, filename, |ident| match ident.as_str() {
+        "name" => Some(MutField::String(&mut mc.name)),
+        "description" => Some(MutField::String(&mut mc.description)),
+        "width" => Some(MutField::RangedU8(&mut mc.width, 1..=6)),
+        "length" => Some(MutField::RangedU8(&mut mc.length, 1..=6)),
+        _ => None,
+    })
 }

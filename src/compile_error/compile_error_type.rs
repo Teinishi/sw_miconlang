@@ -15,13 +15,16 @@ pub enum CompileErrorType<'a> {
         ident: &'a str,
     },
     InvalidAssignment,
-    IncompatibleTypes {
-        expected_type: ValueType,
+    IncompatibleType {
+        expected_types: Vec<ValueType>,
         found_type: ValueType,
     },
     LiteralExpected,
     OutOfBounds {
         bounds: RangeInclusive<i64>,
+    },
+    UnknownType {
+        type_name: &'a str,
     },
 }
 
@@ -54,9 +57,10 @@ impl<'a> CompileErrorType<'a> {
             Self::UnexpectedToken { .. } => "Unexpected Token",
             Self::UnknownField { .. } => "Unknown Field",
             Self::InvalidAssignment => "Invalid Assignment",
-            Self::IncompatibleTypes { .. } => "Incompatible Types",
+            Self::IncompatibleType { .. } => "Incompatible Types",
             Self::LiteralExpected => "Literal Expected",
             Self::OutOfBounds { .. } => "Out of Bounds",
+            Self::UnknownType { .. } => "Unknown Type",
         }
     }
 
@@ -82,13 +86,14 @@ impl<'a> CompileErrorType<'a> {
             Self::InvalidAssignment => label
                 .with_message("Cannot assign to this")
                 .with_color(Color::Red),
-            Self::IncompatibleTypes {
-                expected_type,
+            Self::IncompatibleType {
+                expected_types: expected_type,
                 found_type,
             } => label
                 .with_message(format!(
-                    "Type `{}` expected, `{}` found",
-                    expected_type, found_type
+                    "Type {} expected, `{}` found",
+                    format_iter(expected_type),
+                    found_type
                 ))
                 .with_color(Color::Red),
             Self::LiteralExpected => label
@@ -101,6 +106,26 @@ impl<'a> CompileErrorType<'a> {
                     bounds.end()
                 ))
                 .with_color(Color::Red),
+            Self::UnknownType { type_name } => label
+                .with_message(format!("Type name `{}` is unknown", type_name))
+                .with_color(Color::Red),
         }
+    }
+}
+
+fn format_iter<T, I>(iter: I) -> String
+where
+    T: std::fmt::Display,
+    I: IntoIterator<Item = T>,
+{
+    let items: Vec<String> = iter.into_iter().map(|x| format!("`{x}`")).collect();
+    match items.len() {
+        0 => String::new(),
+        1 => items[0].clone(),
+        _ => format!(
+            "{} or {}",
+            items[..items.len() - 1].join(", "),
+            items.last().unwrap()
+        ),
     }
 }

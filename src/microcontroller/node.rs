@@ -52,49 +52,11 @@ pub struct InputNode {
     inner: NodeInner,
 }
 
-impl InputNode {
-    pub fn new(
-        label: String,
-        description: String,
-        node_type: NodeType,
-        position: NodePosition,
-    ) -> Self {
-        Self {
-            inner: NodeInner {
-                label,
-                description,
-                node_type,
-                position,
-            },
-        }
-    }
-}
-
 #[derive(Deref, Debug)]
 pub struct OutputNode {
     #[deref]
     inner: NodeInner,
     pub input: OptionalLink,
-}
-
-impl OutputNode {
-    pub fn new(
-        label: String,
-        description: String,
-        node_type: NodeType,
-        position: NodePosition,
-        input: OptionalLink,
-    ) -> Self {
-        Self {
-            inner: NodeInner {
-                label,
-                description,
-                node_type,
-                position,
-            },
-            input,
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -104,6 +66,14 @@ pub enum Node {
 }
 
 impl Node {
+    pub fn new_input(inner: NodeInner) -> Self {
+        Self::Input(Rc::new(InputNode { inner }))
+    }
+
+    pub fn new_output(inner: NodeInner) -> Self {
+        Self::Output(Rc::new(OutputNode { inner, input: None }))
+    }
+
     pub fn mode(&self) -> NodeMode {
         match self {
             Self::Input(_) => NodeMode::Input,
