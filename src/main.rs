@@ -1,6 +1,6 @@
 #![warn(unused_extern_crates)]
 
-mod ast;
+mod compile;
 mod compile_error;
 mod lexical;
 mod microcontroller;
@@ -8,14 +8,10 @@ mod semantic;
 mod syntax;
 mod xml_schema;
 
-use ast::parse;
-use semantic::analyze_file;
-#[expect(unused)]
 use std::{
     env,
     fs::File,
     io::{Read as _, Write as _},
-    rc::Rc,
 };
 
 #[expect(unused)]
@@ -26,18 +22,21 @@ use crate::microcontroller::{
 };
 
 fn main() {
-    let filename = env::args().nth(1).expect("expected file argument");
-    let mut f = File::open(&filename).expect("file not found");
-    let mut content = String::new();
-    f.read_to_string(&mut content)
-        .expect("something went wrong reading the file");
+    let filename = env::args().nth(1).expect("Expected file argument");
+    let mut f = File::open(&filename).expect("File not found");
+    let mut code = String::new();
+    f.read_to_string(&mut code)
+        .expect("Something went wrong reading the file");
 
-    // 読み込んだファイルをパース
-    let result = parse(&content, &filename);
-    dbg!(&result);
-    if let Some(tree) = &result {
-        let r = analyze_file(tree);
-        dbg!(&r);
+    // 読み込んだファイルをコンパイル
+    if let Some(xml_files) = compile::compile(&code, &filename, true) {
+        for (name, content) in xml_files {
+            let mut file = File::create(format!("{}.xml", name))
+                .unwrap_or_else(|_| panic!("Cannot create {}.xml", name));
+            let _ = file
+                .write(content.as_bytes())
+                .unwrap_or_else(|_| panic!("Cannot write to {}.xml", name));
+        }
     }
 
     /*

@@ -1,7 +1,6 @@
 mod compile_error_type;
 pub use compile_error_type::CompileErrorType;
 
-use crate::lexical::Token;
 use ariadne::{Label, Report, ReportKind, Source};
 use std::ops::Range;
 
@@ -13,22 +12,11 @@ pub struct CompileError<'a, 'b> {
 }
 
 impl<'a, 'b> CompileError<'a, 'b> {
-    pub fn invalid_token(filename: &'a str, span: Range<usize>) -> Self {
+    pub fn new(filename: &'a str, span: Range<usize>, error_type: CompileErrorType<'b>) -> Self {
         Self {
             filename,
             span,
-            error_type: CompileErrorType::InvalidToken,
-        }
-    }
-
-    pub fn unexpected_token(
-        filename: &'a str,
-        e: &'b chumsky::error::Rich<'_, Token, Range<usize>>,
-    ) -> Self {
-        Self {
-            filename,
-            span: e.span().clone(),
-            error_type: CompileErrorType::unexpected_token(e),
+            error_type,
         }
     }
 

@@ -1,6 +1,8 @@
 microcontroller BasicExample {
     name = "Basic Example"
     description = "description of the microcontroller"
+    width = 1
+    length = 3
 
     interface {
         inputs {

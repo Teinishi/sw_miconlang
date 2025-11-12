@@ -1,7 +1,8 @@
-use crate::lexical::Token;
+use crate::{lexical::Token, semantic::ValueType};
+
 use ariadne::{Color, Label};
 use chumsky::error::RichPattern;
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 
 #[derive(Debug)]
 pub enum CompileErrorType<'a> {
@@ -9,6 +10,18 @@ pub enum CompileErrorType<'a> {
     UnexpectedToken {
         expected: String,
         found: Option<&'a Token>,
+    },
+    UnknownField {
+        ident: &'a str,
+    },
+    InvalidAssignment,
+    IncompatibleTypes {
+        expected_type: ValueType,
+        found_type: ValueType,
+    },
+    LiteralExpected,
+    OutOfBounds {
+        bounds: RangeInclusive<i64>,
     },
 }
 
@@ -37,8 +50,13 @@ impl<'a> CompileErrorType<'a> {
 
     pub fn name(&self) -> &'static str {
         match self {
-            Self::InvalidToken => "Syntax Error: Invalid Token",
-            Self::UnexpectedToken { .. } => "Parse Error: Unexpected Token",
+            Self::InvalidToken => "Invalid Token",
+            Self::UnexpectedToken { .. } => "Unexpected Token",
+            Self::UnknownField { .. } => "Unknown Field",
+            Self::InvalidAssignment => "Invalid Assignment",
+            Self::IncompatibleTypes { .. } => "Incompatible Types",
+            Self::LiteralExpected => "Literal Expected",
+            Self::OutOfBounds { .. } => "Out of Bounds",
         }
     }
 
@@ -58,6 +76,31 @@ impl<'a> CompileErrorType<'a> {
                 };
                 label.with_message(label_msg).with_color(Color::Red)
             }
+            Self::UnknownField { ident } => label
+                .with_message(format!("Field `{}` is unknown", ident))
+                .with_color(Color::Red),
+            Self::InvalidAssignment => label
+                .with_message("Cannot assign to this")
+                .with_color(Color::Red),
+            Self::IncompatibleTypes {
+                expected_type,
+                found_type,
+            } => label
+                .with_message(format!(
+                    "Type `{}` expected, `{}` found",
+                    expected_type, found_type
+                ))
+                .with_color(Color::Red),
+            Self::LiteralExpected => label
+                .with_message("Only accepts literal value")
+                .with_color(Color::Red),
+            Self::OutOfBounds { bounds } => label
+                .with_message(format!(
+                    "Only accepts value between {} and {}",
+                    bounds.start(),
+                    bounds.end()
+                ))
+                .with_color(Color::Red),
         }
     }
 }

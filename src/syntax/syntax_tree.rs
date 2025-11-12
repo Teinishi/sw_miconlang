@@ -10,7 +10,8 @@ pub struct Spanned<T> {
 #[derive(Debug)]
 pub enum LiteralValue {
     Bool(bool),
-    Number(f64),
+    Int(i64),
+    Float(f64),
     String(String),
 }
 
@@ -39,7 +40,6 @@ pub enum Expr {
     UnaryOp(UnaryOp),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub struct Assignment {
     pub target: Spanned<Expr>,

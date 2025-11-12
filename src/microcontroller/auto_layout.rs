@@ -54,8 +54,6 @@ fn auto_layout(
         .map(|i| i.layout(&height_map))
         .collect::<Vec<_>>();
 
-    dbg!(&islands);
-
     // 島を縦に並べる
     let mut y_offset = 0;
     let mut position_map = HashMap::with_capacity(n_total);

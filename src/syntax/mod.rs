@@ -20,7 +20,8 @@ where
     // 構文解析
     let ident = select! { Token::Ident(v) => v }.labelled("identifier");
     let bool_literal = select! { Token::Bool(v) => LiteralValue::Bool(v) }.labelled("bool");
-    let number_literal = select! { Token::Number(v) => LiteralValue::Number(v) }.labelled("number");
+    let int_literal = select! { Token::Int(v) => LiteralValue::Int(v) }.labelled("int");
+    let float_literal = select! { Token::Float(v) => LiteralValue::Float(v) }.labelled("float");
     let string_literal = select! { Token::String(v) => LiteralValue::String(v) }.labelled("string");
 
     // 式
@@ -30,7 +31,7 @@ where
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
         let atom = choice((
-            choice((bool_literal, number_literal, string_literal)).map_with(|value, e| Spanned {
+            choice((bool_literal, int_literal, float_literal, string_literal)).map_with(|value, e| Spanned {
                 inner: Expr::LiteralValue(value),
                 span: e.span(),
             }),

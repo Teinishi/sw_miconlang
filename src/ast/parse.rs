@@ -1,5 +1,5 @@
 use crate::{
-    compile_error::CompileError,
+    compile_error::{CompileError, CompileErrorType},
     lexical::tokenize,
     syntax::{File, Spanned, parser},
 };
@@ -18,7 +18,7 @@ pub fn parse(code: &str, filename: &str) -> Option<Spanned<File>> {
     // 字句解析エラーを表示
     if let Err(errors) = tokens {
         for span in errors {
-            CompileError::invalid_token(filename, span).print(&cache);
+            CompileError::new(filename, span, CompileErrorType::InvalidToken).print(&cache);
         }
         return None;
     }
@@ -31,7 +31,12 @@ pub fn parse(code: &str, filename: &str) -> Option<Spanned<File>> {
     // 構文解析エラーを表示
     if result.has_errors() {
         for e in result.errors() {
-            CompileError::unexpected_token(filename, e).print(&cache);
+            CompileError::new(
+                filename,
+                e.span().clone(),
+                CompileErrorType::unexpected_token(e),
+            )
+            .print(&cache);
         }
         return None;
     }
