@@ -64,7 +64,7 @@ pub enum Token {
     Int(i64),
     #[regex(r"[+-]?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)", |lex| lex.slice().parse::<f64>().unwrap())]
     Float(f64),
-    #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| {dbg!(&lex.slice()); lex.slice().to_owned()})]
+    #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| serde_json::from_str::<String>(lex.slice()).unwrap())]
     String(String),
 }
 
