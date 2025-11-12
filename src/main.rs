@@ -8,9 +8,7 @@ mod semantic;
 mod syntax;
 mod xml_schema;
 
-#[expect(unused)]
 use ast::parse;
-#[expect(unused)]
 use semantic::analyze_file;
 #[expect(unused)]
 use std::{
@@ -28,7 +26,7 @@ use crate::microcontroller::{
 };
 
 fn main() {
-    /*let filename = env::args().nth(1).expect("expected file argument");
+    let filename = env::args().nth(1).expect("expected file argument");
     let mut f = File::open(&filename).expect("file not found");
     let mut content = String::new();
     f.read_to_string(&mut content)
@@ -38,8 +36,9 @@ fn main() {
     let result = parse(&content, &filename);
     dbg!(&result);
     if let Some(tree) = &result {
-        let _ = analyze_file(tree);
-    }*/
+        let r = analyze_file(tree);
+        dbg!(&r);
+    }
 
     /*
     // 読み込んだファイルを input.xml に書き出す
@@ -57,7 +56,7 @@ fn main() {
     let mc = mc.unwrap();
     */
 
-    let input_a = Rc::new(InputNode::new(
+    /*let input_a = Rc::new(InputNode::new(
         "Input A".to_owned(),
         "The input signal to be processed.".to_owned(),
         NodeType::Number,
@@ -141,5 +140,5 @@ fn main() {
         .expect("cannot write to output.xml");
     let _ = file
         .write(xml.as_bytes())
-        .expect("cannot write to output.xml");
+        .expect("cannot write to output.xml");*/
 }

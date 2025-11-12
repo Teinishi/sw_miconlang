@@ -1,6 +1,5 @@
 use derive_more::Deref;
 
-#[expect(dead_code)]
 #[derive(Deref, Debug)]
 pub struct Spanned<T> {
     #[deref]
@@ -8,7 +7,6 @@ pub struct Spanned<T> {
     pub span: std::ops::Range<usize>,
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum LiteralValue {
     Bool(bool),

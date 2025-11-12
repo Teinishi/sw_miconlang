@@ -24,6 +24,19 @@ pub struct Microcontroller<N, C> {
     pub components: Vec<C>,
 }
 
+impl<N, C> Default for Microcontroller<N, C> {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            description: String::new(),
+            width: 1,
+            length: 1,
+            nodes: Vec::new(),
+            components: Vec::new(),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ComponentPosition {
     pub x: i32,
