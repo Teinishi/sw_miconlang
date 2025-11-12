@@ -37,6 +37,7 @@ fn auto_layout(
     let n_components = components.len();
     let n_total = n_nodes + n_components;
 
+    // コンポーネントの高さ
     let mut height_map = HashMap::with_capacity(n_total);
     for node in &nodes {
         height_map.insert(ComponentKey::from(node), 2);
@@ -45,41 +46,54 @@ fn auto_layout(
         height_map.insert(ComponentKey::from(component), component.height());
     }
 
+    // 連結コンポーネントで島を構築
     let connection = GraphConnection::new(&nodes, &components);
-    let islands = connection.make_islands();
+    let islands = connection
+        .make_islands()
+        .iter()
+        .map(|i| i.layout(&height_map))
+        .collect::<Vec<_>>();
 
+    dbg!(&islands);
+
+    // 島を縦に並べる
+    let mut y_offset = 0;
     let mut position_map = HashMap::with_capacity(n_total);
-    let mut y = 0;
     for island in &islands {
-        let (grid_map, x_count, bounding_height) = island.layout(&height_map);
-        let bounding_width = x_count * 5 - 1;
-        for (key, pos) in grid_map {
-            position_map.insert(
-                key,
-                ComponentPosition::new(pos.0 * 5 - bounding_width / 2, y + pos.1),
-            );
+        let bbox = island.bounding_box();
+        for (k, v) in &island.layout_map {
+            let x = v.0 * 5 - bbox.left;
+            let y = y_offset + v.1 - bbox.top;
+            let h = v.2;
+            position_map.insert(*k, (x, -y - h)); // Y座標反転、左下原点
         }
-        y += bounding_height;
+        y_offset = bbox.height() + 1;
     }
 
+    // レイアウト割り当て
+    let mut isolated_y = 0; // 接続のないコンポーネントは左端で縦に並べる
     let mut pos_nodes = Vec::with_capacity(n_nodes);
     let mut pos_components = Vec::with_capacity(n_components);
     for node in nodes {
-        let pos = position_map
-            .remove(&(&node).into())
-            .unwrap_or(ComponentPosition { x: 0, y: 0 });
+        let pos = position_map.remove(&(&node).into()).unwrap_or_else(|| {
+            isolated_y -= *height_map.get(&(&node).into()).unwrap() as i32;
+            (-5, isolated_y)
+        });
         pos_nodes.push(PositionedNode {
             inner: node,
-            component_position: pos,
+            component_position: ComponentPosition::new(pos.0, pos.1),
         });
     }
     for component in components {
         let pos = position_map
             .remove(&(&component).into())
-            .unwrap_or(ComponentPosition { x: 0, y: 0 });
+            .unwrap_or_else(|| {
+                isolated_y -= *height_map.get(&(&component).into()).unwrap() as i32;
+                (-5, isolated_y)
+            });
         pos_components.push(PositionedComponent {
             inner: component,
-            position: pos,
+            position: ComponentPosition::new(pos.0, pos.1),
         });
     }
 
@@ -309,11 +323,8 @@ impl Island {
         self.all.contains(value)
     }
 
-    fn layout(
-        &self,
-        height_map: &HashMap<ComponentKey, u8>,
-    ) -> (HashMap<ComponentKey, (i32, i32)>, i32, i32) {
-        let mut position_map = HashMap::with_capacity(self.all.len());
+    fn layout(&self, height_map: &HashMap<ComponentKey, u8>) -> LayoutIsland {
+        let mut layout_map = HashMap::with_capacity(self.all.len());
         let mut x_count = 0;
         let mut bounding_height = 0;
         if let Some(min_x) = self.inner.keys().next() {
@@ -322,14 +333,60 @@ impl Island {
                 x_count = x_count.max(x);
                 let mut y = 0;
                 for c in s {
-                    position_map.insert(*c, (x, y));
                     let h = *height_map.get(c).unwrap() as i32;
+                    layout_map.insert(*c, (x, y, h));
                     y += h;
                     bounding_height = bounding_height.max(y);
                 }
             }
         }
-        (position_map, x_count, bounding_height)
+
+        LayoutIsland { layout_map }
+    }
+}
+
+#[derive(Debug)]
+struct LayoutIsland {
+    layout_map: HashMap<ComponentKey, (i32, i32, i32)>,
+}
+
+impl LayoutIsland {
+    fn bounding_box(&self) -> BoundingBox {
+        let mut left = 0;
+        let mut top = 0;
+        let mut right = 0;
+        let mut bottom = 0;
+        for (x, y, h) in self.layout_map.values() {
+            left = left.min(x * 5);
+            top = top.min(*y);
+            right = right.max(x * 5 + 4);
+            bottom = bottom.max(y + h);
+        }
+        BoundingBox {
+            left,
+            top,
+            right,
+            bottom,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct BoundingBox {
+    left: i32,
+    top: i32,
+    right: i32,
+    bottom: i32,
+}
+
+impl BoundingBox {
+    #[expect(dead_code)]
+    fn width(&self) -> i32 {
+        self.right - self.left
+    }
+
+    fn height(&self) -> i32 {
+        self.bottom - self.top
     }
 }
 

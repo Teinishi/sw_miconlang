@@ -99,13 +99,14 @@ fn main() {
         NodeType::Bool,
         NodePosition::new(0, 3),
         Some(Link::component(&div, 1)),
+        //None,
     ));
 
     let mc: UnpositionedMicrocontroller = Microcontroller {
         name: "Generated Microcontroller".to_owned(),
         description: "This is description".to_owned(),
         width: 1,
-        length: 3,
+        length: 4,
         nodes: vec![
             Node::Input(input_a),
             Node::Input(input_b),
