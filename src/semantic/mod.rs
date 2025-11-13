@@ -1,16 +1,19 @@
+mod evaluate_expr;
 mod field;
 mod interface;
 mod value_type;
-use crate::{
-    compile_error::CompileError,
-    microcontroller::{Microcontroller, UnpositionedMicrocontroller},
-    syntax::{self, Assignment, Spanned},
-};
-use field::{MutField, analyze_field};
+use evaluate_expr::evaluate_expr;
+use field::FieldAnalyzer;
 use interface::analyze_microcontroller_interfaces;
 pub use value_type::ValueType;
 
-use std::collections::HashMap;
+use crate::{
+    compile_error::CompileError,
+    microcontroller::{Component, Node, UnpositionedMicrocontroller},
+    syntax::{self, Spanned},
+};
+
+use std::{collections::HashMap, rc::Rc};
 
 #[derive(Debug)]
 pub struct FileAnalyzeResult<'a> {
@@ -56,22 +59,68 @@ pub fn analyze_file<'a>(tree: &Spanned<syntax::File>, filename: &'a str) -> File
     }
 }
 
+#[derive(Default, Debug)]
+struct PartialMicrocontroller {
+    name: Option<String>,
+    description: Option<String>,
+    size: Option<(u8, u8)>,
+    nodes: Option<Vec<Node>>,
+    components: Option<Vec<Rc<Component>>>,
+}
+
+impl From<PartialMicrocontroller> for UnpositionedMicrocontroller {
+    fn from(value: PartialMicrocontroller) -> Self {
+        let (width, length) = value.size.unwrap_or((1, 1));
+        Self {
+            name: value.name.unwrap_or_default(),
+            description: value.description.unwrap_or_default(),
+            width,
+            length,
+            nodes: value.nodes.unwrap_or_default(),
+            components: value.components.unwrap_or_default(),
+        }
+    }
+}
+
 fn analyze_microcontroller<'a>(
     elements: &[Spanned<syntax::MicrocontrollerElement>],
     filename: &'a str,
     errors: &mut Vec<CompileError<'a>>,
 ) -> Option<UnpositionedMicrocontroller> {
-    let mut mc = Microcontroller::default();
+    let mut mc = PartialMicrocontroller::default();
+    let mut fields = FieldAnalyzer::new(filename);
+    let mut interface: Option<interface::Interface> = None;
 
     for element in elements {
         match &element.inner {
             syntax::MicrocontrollerElement::Field(assignment) => {
-                if let Err(err) = analyze_microcontroller_field(assignment, &mut mc, filename) {
+                let r = fields.assignment(assignment, |ident, expr| {
+                    match ident.as_str() {
+                        "name" => mc.name = Some(evaluate_expr(expr, filename)?.try_into()?),
+                        "description" => {
+                            mc.description = Some(evaluate_expr(expr, filename)?.try_into()?)
+                        }
+                        "size" => {
+                            mc.size = Some(
+                                evaluate_expr(expr, filename)?
+                                    .tuple_int_ranged(vec![1..=6, 1..=6])?
+                                    .try_into()?,
+                            )
+                        }
+                        _ => {
+                            return Ok(false);
+                        }
+                    }
+                    Ok(true)
+                });
+                if let Err(err) = r {
                     errors.push(err);
                 }
             }
             syntax::MicrocontrollerElement::Interface(interfaces) => {
-                analyze_microcontroller_interfaces(interfaces, &mut mc, filename, errors);
+                interface = Some(analyze_microcontroller_interfaces(
+                    interfaces, &mut mc, filename, errors,
+                ));
             }
             syntax::MicrocontrollerElement::Logic(statements) => {
                 dbg!(&statements);
@@ -79,39 +128,5 @@ fn analyze_microcontroller<'a>(
         }
     }
 
-    Some(mc)
-}
-
-fn analyze_microcontroller_field<'a>(
-    assignment: &Spanned<Assignment>,
-    mc: &mut UnpositionedMicrocontroller,
-    filename: &'a str,
-) -> Result<(), CompileError<'a>> {
-    let mut name = None;
-    let mut description = None;
-    let mut width = None;
-    let mut length = None;
-
-    analyze_field(assignment, filename, |ident| match ident.as_str() {
-        "name" => Some(MutField::String(&mut name)),
-        "description" => Some(MutField::String(&mut description)),
-        "width" => Some(MutField::RangedU8(&mut width, 1..=6)),
-        "length" => Some(MutField::RangedU8(&mut length, 1..=6)),
-        _ => None,
-    })?;
-
-    if let Some(name) = name {
-        mc.name = name;
-    }
-    if let Some(description) = description {
-        mc.description = description;
-    }
-    if let Some(width) = width {
-        mc.width = width;
-    }
-    if let Some(length) = length {
-        mc.length = length;
-    }
-
-    Ok(())
+    Some(mc.into())
 }

@@ -1,21 +1,29 @@
-use super::{MutField, ValueType, analyze_field};
+use super::{FieldAnalyzer, PartialMicrocontroller, ValueType};
 use crate::{
     compile_error::{CompileError, CompileErrorType},
-    microcontroller::{
-        Node, NodeInner, NodeMode, NodePosition, NodeType, UnpositionedMicrocontroller,
-    },
+    microcontroller::{InputNode, Node, NodeInner, NodeMode, NodePosition, NodeType, OutputNode},
+    semantic::evaluate_expr,
     syntax::{MicrocontrollerInterface, MicrocontrollerInterfaceNode, Spanned},
 };
 
-use std::collections::{HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    rc::Rc,
+};
+
+#[derive(Default, Debug)]
+pub(super) struct Interface {
+    inputs: HashMap<String, Rc<InputNode>>,
+    outputs: HashMap<String, Rc<OutputNode>>,
+}
 
 pub(super) fn analyze_microcontroller_interfaces<'a>(
     items: &[Spanned<MicrocontrollerInterface>],
-    mc: &mut UnpositionedMicrocontroller,
+    mc: &mut PartialMicrocontroller,
     filename: &'a str,
     errors: &mut Vec<CompileError<'a>>,
-) {
-    let mut node_placement = NodePlacement::default();
+) -> Interface {
+    let mut node_placement = NodePlacement::new(mc.size);
 
     for item in items {
         let (nodes, mode) = match &item.inner {
@@ -30,10 +38,26 @@ pub(super) fn analyze_microcontroller_interfaces<'a>(
         }
     }
 
-    let (size, nodes) = node_placement.layout();
-    mc.width = size.0;
-    mc.length = size.1;
-    mc.nodes = nodes;
+    let (size, name_nodes) = node_placement.layout();
+    let mut nodes = Vec::with_capacity(name_nodes.len());
+
+    let mut interface = Interface::default();
+    for (name, node) in name_nodes {
+        match &node {
+            Node::Input(n) => {
+                interface.inputs.insert(name, n.clone());
+            }
+            Node::Output(n) => {
+                interface.outputs.insert(name, n.clone());
+            }
+        }
+        nodes.push(node);
+    }
+
+    mc.size = Some(size);
+    mc.nodes = Some(nodes);
+
+    interface
 }
 
 fn analyze_node<'a>(
@@ -65,22 +89,34 @@ fn analyze_node<'a>(
         }
     };
 
+    let mut fields = FieldAnalyzer::new(filename);
+
     let mut label = None;
     let mut description = None;
     let mut position = None;
 
-    if let Some(fields) = &node.fields {
-        for assignment in fields {
-            analyze_field(assignment, filename, |ident| match ident.as_str() {
-                "name" => Some(MutField::String(&mut label)),
-                "description" => Some(MutField::String(&mut description)),
-                "position" => Some(MutField::TupleTwoRangedU8(&mut position, (0..=5, 0..=5))),
-                _ => None,
+    if let Some(f) = &node.fields {
+        for assignment in f {
+            fields.assignment(assignment, |ident, expr| {
+                match ident.as_str() {
+                    "name" => label = Some(evaluate_expr(expr, filename)?.try_into()?),
+                    "description" => description = Some(evaluate_expr(expr, filename)?.try_into()?),
+                    "position" => {
+                        position = Some(
+                            evaluate_expr(expr, filename)?
+                                .tuple_int_ranged(vec![0..=5, 0..=5])?
+                                .try_into()?,
+                        )
+                    }
+                    _ => return Ok(false),
+                }
+                Ok(true)
             })?;
         }
     }
 
     Ok(FloatingNode {
+        name: node.name.clone(),
         mode,
         label: label.unwrap_or_else(|| node.name.clone()),
         description: description.unwrap_or_default(),
@@ -92,6 +128,7 @@ fn analyze_node<'a>(
 // 位置を決める前のノード情報
 #[derive(Debug)]
 struct FloatingNode {
+    name: String,
     mode: NodeMode,
     label: String,
     description: String,
@@ -100,7 +137,7 @@ struct FloatingNode {
 }
 
 // ノードの自動配置
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct NodePlacement {
     size: Option<(u8, u8)>,
     nodes: VecDeque<FloatingNode>,
@@ -109,6 +146,15 @@ struct NodePlacement {
 }
 
 impl NodePlacement {
+    fn new(size: Option<(u8, u8)>) -> Self {
+        Self {
+            size,
+            nodes: VecDeque::new(),
+            reserved: HashSet::new(),
+            count: 0,
+        }
+    }
+
     fn add(&mut self, node: FloatingNode) {
         if let Some(pos) = &node.position {
             if self.reserved.insert(*pos) {
@@ -120,7 +166,7 @@ impl NodePlacement {
         self.nodes.push_back(node);
     }
 
-    fn layout(mut self) -> ((u8, u8), Vec<Node>) {
+    fn layout(mut self) -> ((u8, u8), Vec<(String, Node)>) {
         let n = self.nodes.len();
         let size = self
             .size
@@ -157,7 +203,7 @@ impl NodePlacement {
                 NodeMode::Input => Node::new_input(inner),
                 NodeMode::Output => Node::new_output(inner),
             };
-            nodes.push(n);
+            nodes.push((node.name, n));
         }
 
         (size, nodes)

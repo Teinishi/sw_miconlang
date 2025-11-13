@@ -1,5 +1,3 @@
-use crate::syntax::Expr;
-
 #[derive(Debug)]
 pub enum ValueType {
     Bool,
@@ -17,19 +15,6 @@ impl ValueType {
             "float" => Ok(Self::Float),
             "string" => Ok(Self::String),
             _ => Err(type_name),
-        }
-    }
-
-    pub(super) fn from_expr(value: &Expr) -> Self {
-        match value {
-            Expr::BoolLiteral(_) => Self::Bool,
-            Expr::IntLiteral(_) => Self::Int,
-            Expr::FloatLiteral(_) => Self::Float,
-            Expr::StringLiteral(_) => Self::String,
-            Expr::Tuple(items) => {
-                Self::Tuple(items.iter().map(|i| Self::from_expr(&i.inner)).collect())
-            }
-            _ => todo!(), // コンテキストを見て式を評価して型を決める
         }
     }
 }

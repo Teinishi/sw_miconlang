@@ -25,6 +25,7 @@ pub enum CompileErrorType {
     UnknownType {
         type_name: String,
     },
+    FieldAlreadyDeclared, // todo: 先にどこで定義されているか表示できるように
 }
 
 impl CompileErrorType {
@@ -59,6 +60,7 @@ impl CompileErrorType {
             Self::IncompatibleType { .. } => "Incompatible Types",
             Self::OutOfBounds { .. } => "Out of Bounds",
             Self::UnknownType { .. } => "Unknown Type",
+            Self::FieldAlreadyDeclared => "Field Already Declared",
         }
     }
 
@@ -103,6 +105,9 @@ impl CompileErrorType {
                 .with_color(Color::Red),
             Self::UnknownType { type_name } => label
                 .with_message(format!("Type name `{}` is unknown", type_name))
+                .with_color(Color::Red),
+            Self::FieldAlreadyDeclared => label
+                .with_message("This field is already declared")
                 .with_color(Color::Red),
         }
     }
