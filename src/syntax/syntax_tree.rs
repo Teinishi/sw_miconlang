@@ -7,17 +7,6 @@ pub struct Spanned<T> {
     pub span: std::ops::Range<usize>,
 }
 
-#[derive(Debug)]
-pub enum LiteralValue {
-    Bool(bool),
-    Int(i64),
-    #[expect(dead_code)]
-    Float(f64),
-    String(String),
-    #[expect(dead_code)]
-    Tuple(Vec<LiteralValue>),
-}
-
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum BinaryOp {
@@ -36,8 +25,14 @@ pub enum UnaryOp {
 #[expect(dead_code)]
 #[derive(Debug)]
 pub enum Expr {
+    BoolLiteral(bool),
+    IntLiteral(i64),
+    FloatLiteral(f64),
+    StringLiteral(String),
     Ident(String),
-    LiteralValue(LiteralValue),
+    Inputs,
+    Outputs,
+    Tuple(Vec<Spanned<Expr>>),
     FieldAccess(Box<Spanned<Expr>>, String),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),

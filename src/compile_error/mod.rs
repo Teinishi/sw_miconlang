@@ -5,14 +5,14 @@ use ariadne::{Label, Report, ReportKind, Source};
 use std::ops::Range;
 
 #[derive(Debug)]
-pub struct CompileError<'a, 'b> {
+pub struct CompileError<'a> {
     filename: &'a str,
     span: Range<usize>,
-    error_type: CompileErrorType<'b>,
+    error_type: CompileErrorType,
 }
 
-impl<'a, 'b> CompileError<'a, 'b> {
-    pub fn new(filename: &'a str, span: Range<usize>, error_type: CompileErrorType<'b>) -> Self {
+impl<'a> CompileError<'a> {
+    pub fn new(filename: &'a str, span: Range<usize>, error_type: CompileErrorType) -> Self {
         Self {
             filename,
             span,

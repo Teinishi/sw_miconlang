@@ -5,31 +5,30 @@ use chumsky::error::RichPattern;
 use std::ops::{Range, RangeInclusive};
 
 #[derive(Debug)]
-pub enum CompileErrorType<'a> {
+pub enum CompileErrorType {
     InvalidToken,
     UnexpectedToken {
         expected: String,
-        found: Option<&'a Token>,
+        found: Option<Token>,
     },
     UnknownField {
-        ident: &'a str,
+        ident: String,
     },
     InvalidAssignment,
     IncompatibleType {
         expected_types: Vec<ValueType>,
         found_type: ValueType,
     },
-    LiteralExpected,
     OutOfBounds {
         bounds: RangeInclusive<i64>,
     },
     UnknownType {
-        type_name: &'a str,
+        type_name: String,
     },
 }
 
-impl<'a> CompileErrorType<'a> {
-    pub fn unexpected_token(e: &'a chumsky::error::Rich<'_, Token, Range<usize>>) -> Self {
+impl CompileErrorType {
+    pub fn unexpected_token(e: &chumsky::error::Rich<'_, Token, Range<usize>>) -> Self {
         let mut expected = String::new();
         for token in e.expected() {
             if !expected.is_empty() {
@@ -47,7 +46,7 @@ impl<'a> CompileErrorType<'a> {
 
         Self::UnexpectedToken {
             expected,
-            found: e.found(),
+            found: e.found().cloned(),
         }
     }
 
@@ -58,7 +57,6 @@ impl<'a> CompileErrorType<'a> {
             Self::UnknownField { .. } => "Unknown Field",
             Self::InvalidAssignment => "Invalid Assignment",
             Self::IncompatibleType { .. } => "Incompatible Types",
-            Self::LiteralExpected => "Literal Expected",
             Self::OutOfBounds { .. } => "Out of Bounds",
             Self::UnknownType { .. } => "Unknown Type",
         }
@@ -95,9 +93,6 @@ impl<'a> CompileErrorType<'a> {
                     format_iter(expected_type),
                     found_type
                 ))
-                .with_color(Color::Red),
-            Self::LiteralExpected => label
-                .with_message("Only accepts literal value")
                 .with_color(Color::Red),
             Self::OutOfBounds { bounds } => label
                 .with_message(format!(

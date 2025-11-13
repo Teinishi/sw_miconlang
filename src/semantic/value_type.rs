@@ -1,4 +1,4 @@
-use crate::syntax::LiteralValue;
+use crate::syntax::Expr;
 
 #[derive(Debug)]
 pub enum ValueType {
@@ -19,16 +19,17 @@ impl ValueType {
             _ => Err(type_name),
         }
     }
-}
 
-impl From<&LiteralValue> for ValueType {
-    fn from(value: &LiteralValue) -> Self {
+    pub(super) fn from_expr(value: &Expr) -> Self {
         match value {
-            LiteralValue::Bool(_) => Self::Bool,
-            LiteralValue::Int(_) => Self::Int,
-            LiteralValue::Float(_) => Self::Float,
-            LiteralValue::String(_) => Self::String,
-            LiteralValue::Tuple(items) => Self::Tuple(items.iter().map(|i| i.into()).collect()),
+            Expr::BoolLiteral(_) => Self::Bool,
+            Expr::IntLiteral(_) => Self::Int,
+            Expr::FloatLiteral(_) => Self::Float,
+            Expr::StringLiteral(_) => Self::String,
+            Expr::Tuple(items) => {
+                Self::Tuple(items.iter().map(|i| Self::from_expr(&i.inner)).collect())
+            }
+            _ => todo!(), // コンテキストを見て式を評価して型を決める
         }
     }
 }

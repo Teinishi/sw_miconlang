@@ -9,11 +9,11 @@ use crate::{
 
 use std::collections::{HashSet, VecDeque};
 
-pub(super) fn analyze_microcontroller_interfaces<'a, 'b>(
-    items: &'b [Spanned<MicrocontrollerInterface>],
+pub(super) fn analyze_microcontroller_interfaces<'a>(
+    items: &[Spanned<MicrocontrollerInterface>],
     mc: &mut UnpositionedMicrocontroller,
     filename: &'a str,
-    errors: &mut Vec<CompileError<'a, 'b>>,
+    errors: &mut Vec<CompileError<'a>>,
 ) {
     let mut node_placement = NodePlacement::default();
 
@@ -36,11 +36,11 @@ pub(super) fn analyze_microcontroller_interfaces<'a, 'b>(
     mc.nodes = nodes;
 }
 
-fn analyze_node<'a, 'b>(
+fn analyze_node<'a>(
     mode: NodeMode,
-    node: &'b Spanned<MicrocontrollerInterfaceNode>,
+    node: &Spanned<MicrocontrollerInterfaceNode>,
     filename: &'a str,
-) -> Result<FloatingNode, CompileError<'a, 'b>> {
+) -> Result<FloatingNode, CompileError<'a>> {
     let node_type = match ValueType::from_str(&node.type_name) {
         Ok(ValueType::Bool) => NodeType::Bool,
         Ok(ValueType::Float) => NodeType::Number,
@@ -58,21 +58,23 @@ fn analyze_node<'a, 'b>(
             return Err(CompileError::new(
                 filename,
                 node.span.clone(),
-                CompileErrorType::UnknownType { type_name: err },
+                CompileErrorType::UnknownType {
+                    type_name: err.to_owned(),
+                },
             ));
         }
     };
 
-    let mut label = node.name.clone();
-    let mut description = String::new();
-    let position: Option<(u8, u8)> = None;
+    let mut label = None;
+    let mut description = None;
+    let mut position = None;
 
     if let Some(fields) = &node.fields {
         for assignment in fields {
             analyze_field(assignment, filename, |ident| match ident.as_str() {
                 "name" => Some(MutField::String(&mut label)),
                 "description" => Some(MutField::String(&mut description)),
-                "position" => todo!(),
+                "position" => Some(MutField::TupleTwoRangedU8(&mut position, (0..=5, 0..=5))),
                 _ => None,
             })?;
         }
@@ -80,8 +82,8 @@ fn analyze_node<'a, 'b>(
 
     Ok(FloatingNode {
         mode,
-        label,
-        description,
+        label: label.unwrap_or_else(|| node.name.clone()),
+        description: description.unwrap_or_default(),
         node_type,
         position,
     })
@@ -123,7 +125,6 @@ impl NodePlacement {
         let size = self
             .size
             .unwrap_or_else(|| auto_microcontroller_size(self.count));
-        dbg!(size);
 
         let mut nodes = Vec::with_capacity(n);
 

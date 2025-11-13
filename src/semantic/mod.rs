@@ -13,12 +13,12 @@ pub use value_type::ValueType;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct FileAnalyzeResult<'a, 'b> {
+pub struct FileAnalyzeResult<'a> {
     microcontrollers: HashMap<String, UnpositionedMicrocontroller>,
-    errors: Vec<CompileError<'a, 'b>>,
+    errors: Vec<CompileError<'a>>,
 }
 
-impl<'a, 'b> FileAnalyzeResult<'a, 'b> {
+impl<'a> FileAnalyzeResult<'a> {
     pub fn into_output(self) -> Option<HashMap<String, UnpositionedMicrocontroller>> {
         if self.has_errors() {
             None
@@ -31,15 +31,12 @@ impl<'a, 'b> FileAnalyzeResult<'a, 'b> {
         !self.errors.is_empty()
     }
 
-    pub fn errors(&self) -> &Vec<CompileError<'a, 'b>> {
+    pub fn errors(&self) -> &Vec<CompileError<'a>> {
         &self.errors
     }
 }
 
-pub fn analyze_file<'a, 'b>(
-    tree: &'b Spanned<syntax::File>,
-    filename: &'a str,
-) -> FileAnalyzeResult<'a, 'b> {
+pub fn analyze_file<'a>(tree: &Spanned<syntax::File>, filename: &'a str) -> FileAnalyzeResult<'a> {
     let mut microcontrollers = HashMap::new();
     let mut errors = Vec::new();
 
@@ -59,10 +56,10 @@ pub fn analyze_file<'a, 'b>(
     }
 }
 
-fn analyze_microcontroller<'a, 'b>(
-    elements: &'b [Spanned<syntax::MicrocontrollerElement>],
+fn analyze_microcontroller<'a>(
+    elements: &[Spanned<syntax::MicrocontrollerElement>],
     filename: &'a str,
-    errors: &mut Vec<CompileError<'a, 'b>>,
+    errors: &mut Vec<CompileError<'a>>,
 ) -> Option<UnpositionedMicrocontroller> {
     let mut mc = Microcontroller::default();
 
@@ -85,16 +82,36 @@ fn analyze_microcontroller<'a, 'b>(
     Some(mc)
 }
 
-fn analyze_microcontroller_field<'a, 'b>(
-    assignment: &'b Spanned<Assignment>,
+fn analyze_microcontroller_field<'a>(
+    assignment: &Spanned<Assignment>,
     mc: &mut UnpositionedMicrocontroller,
     filename: &'a str,
-) -> Result<(), CompileError<'a, 'b>> {
+) -> Result<(), CompileError<'a>> {
+    let mut name = None;
+    let mut description = None;
+    let mut width = None;
+    let mut length = None;
+
     analyze_field(assignment, filename, |ident| match ident.as_str() {
-        "name" => Some(MutField::String(&mut mc.name)),
-        "description" => Some(MutField::String(&mut mc.description)),
-        "width" => Some(MutField::RangedU8(&mut mc.width, 1..=6)),
-        "length" => Some(MutField::RangedU8(&mut mc.length, 1..=6)),
+        "name" => Some(MutField::String(&mut name)),
+        "description" => Some(MutField::String(&mut description)),
+        "width" => Some(MutField::RangedU8(&mut width, 1..=6)),
+        "length" => Some(MutField::RangedU8(&mut length, 1..=6)),
         _ => None,
-    })
+    })?;
+
+    if let Some(name) = name {
+        mc.name = name;
+    }
+    if let Some(description) = description {
+        mc.description = description;
+    }
+    if let Some(width) = width {
+        mc.width = width;
+    }
+    if let Some(length) = length {
+        mc.length = length;
+    }
+
+    Ok(())
 }

@@ -19,10 +19,21 @@ where
 {
     // 構文解析
     let ident = select! { Token::Ident(v) => v }.labelled("identifier");
-    let bool_literal = select! { Token::Bool(v) => LiteralValue::Bool(v) }.labelled("bool");
-    let int_literal = select! { Token::Int(v) => LiteralValue::Int(v) }.labelled("int");
-    let float_literal = select! { Token::Float(v) => LiteralValue::Float(v) }.labelled("float");
-    let string_literal = select! { Token::String(v) => LiteralValue::String(v) }.labelled("string");
+    let ident_expr = ident.map_with(|name, e| Spanned {
+        inner: Expr::Ident(name),
+        span: e.span(),
+    });
+    let literal = select! {
+        Token::Bool(v) => Expr::BoolLiteral(v),
+        Token::Int(v) => Expr::IntLiteral(v),
+        Token::Float(v) => Expr::FloatLiteral(v),
+        Token::String(v) => Expr::StringLiteral(v),
+    }
+    .map_with(|v, e| Spanned {
+        inner: v,
+        span: e.span(),
+    })
+    .labelled("literal");
 
     // 式
     let expr = recursive(|p| {
@@ -31,22 +42,16 @@ where
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
         let atom = choice((
-            choice((bool_literal, int_literal, float_literal, string_literal)).map_with(|value, e| Spanned {
-                inner: Expr::LiteralValue(value),
-                span: e.span(),
-            }),
+            literal,
             just(Token::Inputs).map_with(|_, e| Spanned {
-                inner: Expr::Ident("inputs".to_owned()),
+                inner: Expr::Inputs,
                 span: e.span(),
             }),
             just(Token::Outputs).map_with(|_, e| Spanned {
-                inner: Expr::Ident("outputs".to_owned()),
+                inner: Expr::Outputs,
                 span: e.span(),
             }),
-            ident.map_with(|name, e| Spanned {
-                inner: Expr::Ident(name),
-                span: e.span(),
-            }),
+            ident_expr,
             parenthesized,
         ));
 
@@ -58,6 +63,7 @@ where
             },
         );
 
+        // 単項演算 (-)
         let unary = just(Token::Minus)
             .repeated()
             .foldr_with(field_access, |_op, rhs, e| Spanned {
@@ -65,6 +71,7 @@ where
                 span: e.span(),
             });
 
+        // 二項演算 (* /)
         let binary_1 = unary.clone().foldl_with(
             choice((just(Token::Multiply), just(Token::Divide)))
                 .then(unary)
@@ -79,7 +86,8 @@ where
             },
         );
 
-        binary_1.clone().foldl_with(
+        // 二項演算 (+ -)
+        let binary_2 = binary_1.clone().foldl_with(
             choice((just(Token::Plus), just(Token::Minus)))
                 .then(binary_1)
                 .repeated(),
@@ -91,7 +99,21 @@ where
                 },
                 span: e.span(),
             },
-        )
+        );
+
+        // タプル
+        let tuple = binary_2
+            .clone()
+            .separated_by(just(Token::Comma))
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .map_with(|v, e| Spanned {
+                inner: Expr::Tuple(v),
+                span: e.span(),
+            })
+            .labelled("tuple");
+
+        tuple.or(binary_2)
     })
     .labelled("expression");
 

@@ -12,6 +12,7 @@ microcontroller BasicExample {
         outputs {
             c: float {
                 name = "Output C"
+                position = (0, 0)
             }
         }
     }
