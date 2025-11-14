@@ -4,13 +4,13 @@ mod interface;
 mod value_type;
 use evaluate_expr::evaluate_expr;
 use field_analyzer::FieldAnalyzer;
-use interface::analyze_microcontroller_interfaces;
+use interface::InterfaceAnalyzer;
 pub use value_type::ValueType;
 
 use crate::{
-    compile_error::{CompileError, CompileErrorType},
+    compile_error::CompileError,
     microcontroller::{Component, Node, UnpositionedMicrocontroller},
-    syntax::{self, Spanned},
+    syntax::{self, MicrocontrollerElement, Spanned},
 };
 
 use std::{collections::HashMap, rc::Rc};
@@ -88,10 +88,55 @@ fn analyze_microcontroller<'a>(
     errors: &mut Vec<CompileError<'a>>,
 ) -> Option<UnpositionedMicrocontroller> {
     let mut mc = PartialMicrocontroller::default();
+
     let mut fields = FieldAnalyzer::new(filename);
-    let mut interface: Option<interface::Interface> = None;
+    for element in elements {
+        if let MicrocontrollerElement::Field(assignment) = &element.inner {
+            let r = fields.assignment(assignment, |ident, expr| {
+                match ident.as_str() {
+                    "name" => mc.name = Some(evaluate_expr(expr, filename)?.try_into()?),
+                    "description" => {
+                        mc.description = Some(evaluate_expr(expr, filename)?.try_into()?)
+                    }
+                    "size" => {
+                        mc.size = Some(
+                            evaluate_expr(expr, filename)?
+                                .tuple_int_ranged(vec![1..=6, 1..=6])?
+                                .try_into()?,
+                        )
+                    }
+                    _ => {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            });
+            if let Err(err) = r {
+                errors.push(err);
+            }
+        }
+    }
+
+    let mut interface = InterfaceAnalyzer::new(filename, mc.size);
+    for element in elements {
+        if let MicrocontrollerElement::Interface(items) = &element.inner {
+            for item in items {
+                interface.element(item, errors);
+            }
+        }
+    }
+
+    let (size, nodes) = interface.layout();
+    dbg!(&size);
+    dbg!(&nodes);
 
     for element in elements {
+        if let MicrocontrollerElement::Logic(statements) = &element.inner {
+            dbg!(statements);
+        }
+    }
+
+    /*for element in elements {
         match &element.inner {
             syntax::MicrocontrollerElement::Field(assignment) => {
                 let r = fields.assignment(assignment, |ident, expr| {
@@ -148,7 +193,7 @@ fn analyze_microcontroller<'a>(
                 ));
             }
         }
-    }
+    }*/
 
     Some(mc.into())
 }

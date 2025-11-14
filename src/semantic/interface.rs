@@ -1,4 +1,4 @@
-use super::{FieldAnalyzer, PartialMicrocontroller, ValueType};
+use super::{FieldAnalyzer, ValueType};
 use crate::{
     compile_error::{CompileError, CompileErrorType},
     microcontroller::{InputNode, Node, NodeInner, NodeMode, NodePosition, NodeType, OutputNode},
@@ -17,47 +17,69 @@ pub(super) struct Interface {
     outputs: HashMap<String, Rc<OutputNode>>,
 }
 
-pub(super) fn analyze_microcontroller_interfaces<'a>(
-    items: &[Spanned<MicrocontrollerInterface>],
-    mc: &mut PartialMicrocontroller,
+#[derive(Debug)]
+pub(super) struct InterfaceAnalyzer<'a> {
+    inputs: bool,
+    outputs: bool,
+    node_placement: NodePlacement,
     filename: &'a str,
-    errors: &mut Vec<CompileError<'a>>,
-) -> Interface {
-    let mut node_placement = NodePlacement::new(mc.size);
+}
 
-    for item in items {
-        let (nodes, mode) = match &item.inner {
-            MicrocontrollerInterface::Inputs(nodes) => (nodes, NodeMode::Input),
-            MicrocontrollerInterface::Outputs(nodes) => (nodes, NodeMode::Output),
+impl<'a> InterfaceAnalyzer<'a> {
+    pub(super) fn new(filename: &'a str, size: Option<(u8, u8)>) -> Self {
+        Self {
+            inputs: false,
+            outputs: false,
+            node_placement: NodePlacement::new(size),
+            filename,
+        }
+    }
+
+    pub(super) fn element(
+        &mut self,
+        element: &Spanned<MicrocontrollerInterface>,
+        errors: &mut Vec<CompileError<'a>>,
+    ) {
+        let (nodes, mode) = match &element.inner {
+            MicrocontrollerInterface::Inputs(nodes) => {
+                if self.inputs {
+                    errors.push(CompileError::new(
+                        self.filename,
+                        element.span.clone(),
+                        CompileErrorType::ElementAlreadyDeclared,
+                    ));
+                    return;
+                } else {
+                    self.inputs = true;
+                    (nodes, NodeMode::Input)
+                }
+            }
+            MicrocontrollerInterface::Outputs(nodes) => {
+                if self.outputs {
+                    errors.push(CompileError::new(
+                        self.filename,
+                        element.span.clone(),
+                        CompileErrorType::ElementAlreadyDeclared,
+                    ));
+                    return;
+                } else {
+                    self.outputs = true;
+                    (nodes, NodeMode::Output)
+                }
+            }
         };
+
         for node in nodes {
-            match analyze_node(mode, node, filename) {
-                Ok(n) => node_placement.add(n),
+            match analyze_node(mode, node, self.filename) {
+                Ok(n) => self.node_placement.add(n),
                 Err(err) => errors.push(err),
             }
         }
     }
 
-    let (size, name_nodes) = node_placement.layout();
-    let mut nodes = Vec::with_capacity(name_nodes.len());
-
-    let mut interface = Interface::default();
-    for (name, node) in name_nodes {
-        match &node {
-            Node::Input(n) => {
-                interface.inputs.insert(name, n.clone());
-            }
-            Node::Output(n) => {
-                interface.outputs.insert(name, n.clone());
-            }
-        }
-        nodes.push(node);
+    pub(super) fn layout(self) -> ((u8, u8), Vec<(String, Node)>) {
+        self.node_placement.layout()
     }
-
-    mc.size = Some(size);
-    mc.nodes = Some(nodes);
-
-    interface
 }
 
 fn analyze_node<'a>(
