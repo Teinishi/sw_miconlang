@@ -1,14 +1,14 @@
 mod evaluate_expr;
-mod field;
+mod field_analyzer;
 mod interface;
 mod value_type;
 use evaluate_expr::evaluate_expr;
-use field::FieldAnalyzer;
+use field_analyzer::FieldAnalyzer;
 use interface::analyze_microcontroller_interfaces;
 pub use value_type::ValueType;
 
 use crate::{
-    compile_error::CompileError,
+    compile_error::{CompileError, CompileErrorType},
     microcontroller::{Component, Node, UnpositionedMicrocontroller},
     syntax::{self, Spanned},
 };
@@ -118,12 +118,34 @@ fn analyze_microcontroller<'a>(
                 }
             }
             syntax::MicrocontrollerElement::Interface(interfaces) => {
-                interface = Some(analyze_microcontroller_interfaces(
-                    interfaces, &mut mc, filename, errors,
-                ));
+                if interface.is_none() {
+                    interface = Some(analyze_microcontroller_interfaces(
+                        interfaces, &mut mc, filename, errors,
+                    ));
+                } else {
+                    errors.push(CompileError::new(
+                        filename,
+                        element.span.clone(),
+                        CompileErrorType::ElementAlreadyDeclared,
+                    ));
+                }
             }
-            syntax::MicrocontrollerElement::Logic(statements) => {
-                dbg!(&statements);
+            _ => {}
+        }
+    }
+
+    let mut logic = false;
+    for element in elements {
+        if let syntax::MicrocontrollerElement::Logic(statements) = &element.inner {
+            if !logic {
+                logic = true;
+                dbg!(statements);
+            } else {
+                errors.push(CompileError::new(
+                    filename,
+                    element.span.clone(),
+                    CompileErrorType::ElementAlreadyDeclared,
+                ));
             }
         }
     }
