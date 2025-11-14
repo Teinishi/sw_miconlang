@@ -4,7 +4,7 @@ mod link;
 mod node;
 
 pub use components::{ArithmeticComponent, Component, ComponentData};
-pub use link::{Link, OptionalLink};
+pub use link::{AudioLink, BoolLink, CompositeLink, Link, LinkNode, NumberLink, VideoLink};
 pub use node::{InputNode, Node, NodeInner, NodeMode, NodePosition, NodeType, OutputNode};
 
 use crate::xml_schema;

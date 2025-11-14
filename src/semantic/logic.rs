@@ -6,6 +6,8 @@ use crate::{
 
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
+type Span = std::ops::Range<usize>;
+
 #[derive(Debug)]
 pub(super) struct LogicAnalyzer<'a> {
     filename: &'a str,
@@ -46,7 +48,7 @@ impl<'a> LogicAnalyzer<'a> {
                     }
                     let link = link.unwrap();
 
-                    if let Err(err) = self.assign_link(target, link) {
+                    if let Err(err) = self.assign_link(target, link, &value.span) {
                         errors.push(err);
                     }
                 }
@@ -54,11 +56,26 @@ impl<'a> LogicAnalyzer<'a> {
         }
     }
 
-    fn add_component(&mut self, component: Component, index: usize) -> Link {
+    fn add_component(
+        &mut self,
+        component: Component,
+        index: usize,
+        span: &Span,
+    ) -> Result<Link, CompileError<'a>> {
         let rc = Rc::new(component);
-        let link = Link::component(&rc, index);
-        self.components.push(rc);
-        link
+        if let Some(link) = Link::component(&rc, index) {
+            self.components.push(rc);
+            Ok(link)
+        } else {
+            Err(CompileError::new(
+                self.filename,
+                span.clone(),
+                CompileErrorType::NodeDoesNotExist {
+                    component_str: format!("{}", rc),
+                    index,
+                },
+            ))
+        }
     }
 
     fn expr_to_components(&mut self, expr: &Spanned<Expr>) -> Result<Link, CompileError<'a>> {
@@ -67,11 +84,13 @@ impl<'a> LogicAnalyzer<'a> {
             Expr::IntLiteral(v) => self.add_component(
                 Component::Arithmetic(ArithmeticComponent::ConstantNumber { value: *v as f32 }),
                 0,
-            ),
+                &expr.span,
+            )?,
             Expr::FloatLiteral(v) => self.add_component(
                 Component::Arithmetic(ArithmeticComponent::ConstantNumber { value: *v as f32 }),
                 0,
-            ),
+                &expr.span,
+            )?,
             Expr::StringLiteral(_) => {
                 return Err(CompileError::new(
                     self.filename,
@@ -111,56 +130,66 @@ impl<'a> LogicAnalyzer<'a> {
                 let (component, index) = match op {
                     BinaryOp::Add(lhs, rhs) => (
                         Component::Arithmetic(ArithmeticComponent::Add {
-                            input_a: Some(self.expr_to_components(lhs)?),
-                            input_b: Some(self.expr_to_components(rhs)?),
+                            input_a: self.expr_to_component_typed(lhs)?,
+                            input_b: self.expr_to_component_typed(rhs)?,
                         }),
                         0,
                     ),
                     BinaryOp::Sub(lhs, rhs) => (
                         Component::Arithmetic(ArithmeticComponent::Subtract {
-                            input_a: Some(self.expr_to_components(lhs)?),
-                            input_b: Some(self.expr_to_components(rhs)?),
+                            input_a: self.expr_to_component_typed(lhs)?,
+                            input_b: self.expr_to_component_typed(rhs)?,
                         }),
                         0,
                     ),
                     BinaryOp::Mul(lhs, rhs) => (
                         Component::Arithmetic(ArithmeticComponent::Multiply {
-                            input_a: Some(self.expr_to_components(lhs)?),
-                            input_b: Some(self.expr_to_components(rhs)?),
+                            input_a: self.expr_to_component_typed(lhs)?,
+                            input_b: self.expr_to_component_typed(rhs)?,
                         }),
                         0,
                     ),
                     BinaryOp::Div(lhs, rhs) => (
                         Component::Arithmetic(ArithmeticComponent::Divide {
-                            input_a: Some(self.expr_to_components(lhs)?),
-                            input_b: Some(self.expr_to_components(rhs)?),
+                            input_a: self.expr_to_component_typed(lhs)?,
+                            input_b: self.expr_to_component_typed(rhs)?,
                         }),
                         0,
                     ),
                 };
-                self.add_component(component, index)
+                self.add_component(component, index, &expr.span)?
             }
             Expr::UnaryOp(op) => {
                 let (component, index) = match op {
                     UnaryOp::Neg(x) => (
                         Component::Arithmetic(ArithmeticComponent::Function1 {
-                            input_x: Some(self.expr_to_components(x)?),
+                            input_x: self.expr_to_component_typed(x)?,
                             function: "-x".to_owned(),
                         }),
                         0,
                     ),
                 };
-                self.add_component(component, index)
+                self.add_component(component, index, &expr.span)?
             }
         };
 
         Ok(l)
     }
 
+    fn expr_to_component_typed<T>(&mut self, expr: &Spanned<Expr>) -> Result<T, CompileError<'a>>
+    where
+        T: TryFrom<Link>,
+        <T as TryFrom<Link>>::Error: Into<CompileErrorType>,
+    {
+        T::try_from(self.expr_to_components(expr)?)
+            .map_err(|err| CompileError::new(self.filename, expr.span.clone(), err.into()))
+    }
+
     fn assign_link(
         &mut self,
         target: &Spanned<AssignmentTarget>,
         link: Link,
+        value_span: &Span,
     ) -> Result<(), CompileError<'a>> {
         match &target.inner {
             AssignmentTarget::Ident(_) => todo!(),
@@ -180,7 +209,18 @@ impl<'a> LogicAnalyzer<'a> {
                                 },
                             )
                         })?;
-                        o.borrow_mut().input = Some(link);
+                        let found_type = link.node_type();
+                        if !o.borrow_mut().set_input_link(link) {
+                            // ノードの型エラー
+                            return Err(CompileError::new(
+                                self.filename,
+                                value_span.clone(),
+                                CompileErrorType::IncompatibleNodeType {
+                                    expected_type: o.borrow().node_type(),
+                                    found_type,
+                                },
+                            ));
+                        }
                     }
                     AssignmentTarget::FieldAccess(_, _) => todo!(),
                 };

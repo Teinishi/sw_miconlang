@@ -120,6 +120,9 @@ fn analyze_microcontroller<'a>(
             }
         }
     }
+    if !errors.is_empty() {
+        return None;
+    }
 
     let mut interface = InterfaceAnalyzer::new(filename, mc.size);
     for element in elements {
@@ -129,6 +132,9 @@ fn analyze_microcontroller<'a>(
             }
         }
     }
+    if !errors.is_empty() {
+        return None;
+    }
     let interface = interface.layout();
     mc.size = Some(interface.size);
 
@@ -137,6 +143,9 @@ fn analyze_microcontroller<'a>(
         if let MicrocontrollerElement::Logic(statements) = &element.inner {
             logic.statements(statements, errors);
         }
+    }
+    if !errors.is_empty() {
+        return None;
     }
 
     Some(mc.into_microcontroller(interface.nodes, logic.components))

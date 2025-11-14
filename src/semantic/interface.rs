@@ -243,12 +243,11 @@ impl NodePlacement {
             let inner = NodeInner {
                 label: node.label,
                 description: node.description,
-                node_type: node.node_type,
                 position: NodePosition::new(pos.0, pos.1),
             };
             let n = match node.mode {
-                NodeMode::Input => Node::new_input(inner),
-                NodeMode::Output => Node::new_output(inner),
+                NodeMode::Input => Node::new_input(inner, node.node_type),
+                NodeMode::Output => Node::new_output(inner, node.node_type),
             };
             nodes.push((node.name, n));
         }

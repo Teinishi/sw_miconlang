@@ -1,5 +1,5 @@
 use super::{
-    Component, ComponentPosition, InputNode, Link, Microcontroller, Node, OutputNode,
+    Component, ComponentPosition, InputNode, LinkNode, Microcontroller, Node, OutputNode,
     PositionedComponent, PositionedMicrocontroller, PositionedNode, UnpositionedMicrocontroller,
     components::ComponentData as _,
 };
@@ -161,11 +161,11 @@ impl From<&Node> for ComponentKey {
     }
 }
 
-impl From<&Link> for ComponentKey {
-    fn from(value: &Link) -> Self {
+impl From<&LinkNode> for ComponentKey {
+    fn from(value: &LinkNode) -> Self {
         match value {
-            Link::Node(n) => n.into(),
-            Link::Component(c, _) => c.into(),
+            LinkNode::Node(n) => n.into(),
+            LinkNode::Component(c, _) => c.into(),
         }
     }
 }
@@ -205,15 +205,15 @@ impl GraphConnection {
 
         for node in nodes {
             if let Node::Output(n) = node
-                && let Some(link) = &n.borrow().input
+                && let Some(link) = n.borrow().input_link_node().as_ref().map(|i| i.into())
             {
-                s.link_left(n.into(), link);
+                s.connect(link, n.into());
             }
         }
 
         for component in components {
-            for link in component.input_links().into_iter().flatten() {
-                s.link_left(component.into(), link);
+            for link in component.input_links_node().into_iter().flatten() {
+                s.connect(link.into(), component.into());
             }
         }
 
@@ -239,10 +239,6 @@ impl GraphConnection {
             self.inner
                 .insert(left, GraphConnectionItem::to_right(right));
         }
-    }
-
-    fn link_left(&mut self, k: ComponentKey, link: &Link) {
-        self.connect(link.into(), k);
     }
 
     fn make_islands(&self) -> Vec<Island> {

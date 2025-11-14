@@ -1,8 +1,8 @@
-use super::OptionalLink;
+use super::{AudioLink, BoolLink, CompositeLink, NumberLink, VideoLink};
+use crate::microcontroller::{Link, LinkNode};
 
-use derive_more::Deref;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::Deref, rc::Rc};
 use strum::EnumIs;
 
 #[derive(TryFromPrimitive, IntoPrimitive, EnumIs, Clone, Copy, Debug)]
@@ -12,7 +12,7 @@ pub enum NodeMode {
     Input = 1,
 }
 
-#[derive(TryFromPrimitive, IntoPrimitive, PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(TryFromPrimitive, IntoPrimitive, strum::Display, PartialEq, Eq, Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum NodeType {
     Bool = 0,
@@ -42,21 +42,117 @@ impl NodePosition {
 pub struct NodeInner {
     pub label: String,
     pub description: String,
-    pub node_type: NodeType,
+    //pub node_type: NodeType,
     pub position: NodePosition,
 }
 
-#[derive(Deref, Debug)]
-pub struct InputNode {
-    #[deref]
-    inner: NodeInner,
+#[derive(Debug)]
+pub enum InputNode {
+    Bool(NodeInner),
+    Number(NodeInner),
+    Composite(NodeInner),
+    Video(NodeInner),
+    Audio(NodeInner),
 }
 
-#[derive(Deref, Debug)]
-pub struct OutputNode {
-    #[deref]
-    inner: NodeInner,
-    pub input: OptionalLink,
+impl InputNode {
+    pub fn node_type(&self) -> NodeType {
+        match self {
+            Self::Bool(_) => NodeType::Bool,
+            Self::Number(_) => NodeType::Number,
+            Self::Composite(_) => NodeType::Composite,
+            Self::Video(_) => NodeType::Video,
+            Self::Audio(_) => NodeType::Audio,
+        }
+    }
+}
+
+impl Deref for InputNode {
+    type Target = NodeInner;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Bool(inner) => inner,
+            Self::Number(inner) => inner,
+            Self::Composite(inner) => inner,
+            Self::Video(inner) => inner,
+            Self::Audio(inner) => inner,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum OutputNode {
+    Bool {
+        inner: NodeInner,
+        input: BoolLink,
+    },
+    Number {
+        inner: NodeInner,
+        input: NumberLink,
+    },
+    Composite {
+        inner: NodeInner,
+        input: CompositeLink,
+    },
+    Video {
+        inner: NodeInner,
+        input: VideoLink,
+    },
+    Audio {
+        inner: NodeInner,
+        input: AudioLink,
+    },
+}
+
+impl OutputNode {
+    pub fn node_type(&self) -> NodeType {
+        match self {
+            Self::Bool { .. } => NodeType::Bool,
+            Self::Number { .. } => NodeType::Number,
+            Self::Composite { .. } => NodeType::Composite,
+            Self::Video { .. } => NodeType::Video,
+            Self::Audio { .. } => NodeType::Audio,
+        }
+    }
+
+    pub fn input_link_node(&self) -> &Option<LinkNode> {
+        match self {
+            Self::Bool { input, .. } => input,
+            Self::Number { input, .. } => input,
+            Self::Composite { input, .. } => input,
+            Self::Video { input, .. } => input,
+            Self::Audio { input, .. } => input,
+        }
+    }
+
+    pub fn set_input_link(&mut self, link: Link) -> bool {
+        match (self, link) {
+            (Self::Bool { input, .. }, Link::Bool(l)) => *input = l,
+            (Self::Number { input, .. }, Link::Number(l)) => *input = l,
+            (Self::Composite { input, .. }, Link::Composite(l)) => *input = l,
+            (Self::Video { input, .. }, Link::Video(l)) => *input = l,
+            (Self::Audio { input, .. }, Link::Audio(l)) => *input = l,
+            _ => {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl Deref for OutputNode {
+    type Target = NodeInner;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Bool { inner, .. } => inner,
+            Self::Number { inner, .. } => inner,
+            Self::Composite { inner, .. } => inner,
+            Self::Video { inner, .. } => inner,
+            Self::Audio { inner, .. } => inner,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -66,12 +162,41 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn new_input(inner: NodeInner) -> Self {
-        Self::Input(Rc::new(InputNode { inner }))
+    pub fn new_input(inner: NodeInner, node_type: NodeType) -> Self {
+        let n = match node_type {
+            NodeType::Bool => InputNode::Bool(inner),
+            NodeType::Number => InputNode::Number(inner),
+            NodeType::Composite => InputNode::Composite(inner),
+            NodeType::Video => InputNode::Video(inner),
+            NodeType::Audio => InputNode::Audio(inner),
+        };
+        Self::Input(Rc::new(n))
     }
 
-    pub fn new_output(inner: NodeInner) -> Self {
-        Self::Output(Rc::new(RefCell::new(OutputNode { inner, input: None })))
+    pub fn new_output(inner: NodeInner, node_type: NodeType) -> Self {
+        let n = match node_type {
+            NodeType::Bool => OutputNode::Bool {
+                inner,
+                input: Default::default(),
+            },
+            NodeType::Number => OutputNode::Number {
+                inner,
+                input: Default::default(),
+            },
+            NodeType::Composite => OutputNode::Composite {
+                inner,
+                input: Default::default(),
+            },
+            NodeType::Video => OutputNode::Video {
+                inner,
+                input: Default::default(),
+            },
+            NodeType::Audio => OutputNode::Audio {
+                inner,
+                input: Default::default(),
+            },
+        };
+        Self::Output(Rc::new(RefCell::new(n)))
     }
 
     pub fn mode(&self) -> NodeMode {
@@ -97,8 +222,8 @@ impl Node {
 
     pub fn node_type(&self) -> NodeType {
         match self {
-            Self::Input(n) => n.node_type,
-            Self::Output(n) => n.borrow().node_type,
+            Self::Input(n) => n.node_type(),
+            Self::Output(n) => n.borrow().node_type(),
         }
     }
 

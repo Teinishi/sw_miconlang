@@ -1,75 +1,75 @@
-use super::{ComponentData, ComponentNode, NodeType, OptionalLink, single_attr};
+use super::{ComponentData, LinkNode, NodeType, NumberLink, single_attr};
 use crate::xml_schema::{ObjectValue, ObjectValueTag};
 
-use std::{borrow::Cow, collections::HashMap};
+use std::collections::HashMap;
 
 #[expect(dead_code)]
 #[derive(strum::Display, Debug)]
 #[repr(u8)]
 pub enum ArithmeticComponent {
     Add {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
     },
     Subtract {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
     },
     Multiply {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
     },
     Divide {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
     },
     #[strum(to_string = "f(x, y, z)")]
     Function3 {
-        input_x: OptionalLink,
-        input_y: OptionalLink,
-        input_z: OptionalLink,
+        input_x: NumberLink,
+        input_y: NumberLink,
+        input_z: NumberLink,
         function: String,
     },
     Clamp {
-        input: OptionalLink,
+        input: NumberLink,
         min: f32,
         max: f32,
     },
     Abs {
-        input: OptionalLink,
+        input: NumberLink,
     },
     #[strum(to_string = "Constant Number")]
     ConstantNumber {
         value: f32,
     },
     Delta {
-        input: OptionalLink,
+        input: NumberLink,
     },
     #[strum(to_string = "f(x, y, z, w, a, b, c, d)")]
     Function8 {
-        input_x: OptionalLink,
-        input_y: OptionalLink,
-        input_z: OptionalLink,
-        input_w: OptionalLink,
-        input_a: OptionalLink,
-        input_b: OptionalLink,
-        input_c: OptionalLink,
-        input_d: OptionalLink,
+        input_x: NumberLink,
+        input_y: NumberLink,
+        input_z: NumberLink,
+        input_w: NumberLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
+        input_c: NumberLink,
+        input_d: NumberLink,
         function: String,
     },
     #[strum(to_string = "Modulo (fmod)")]
     Modulo {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
     },
     Equal {
-        input_a: OptionalLink,
-        input_b: OptionalLink,
+        input_a: NumberLink,
+        input_b: NumberLink,
         epsilon: f32,
     },
     #[strum(to_string = "f(x)")]
     Function1 {
-        input_x: OptionalLink,
+        input_x: NumberLink,
         function: String,
     },
 }
@@ -111,7 +111,7 @@ impl ComponentData for ArithmeticComponent {
         }
     }
 
-    fn input_links(&self) -> Vec<&OptionalLink> {
+    fn input_links_node(&self) -> Vec<&Option<LinkNode>> {
         match self {
             Self::Add { input_a, input_b }
             | Self::Subtract { input_a, input_b }
@@ -127,7 +127,9 @@ impl ComponentData for ArithmeticComponent {
                 input_z,
                 ..
             } => vec![input_x, input_y, input_z],
-            Self::Clamp { input, .. } | Self::Abs { input } | Self::Delta { input } => vec![input],
+            Self::Clamp { input, .. } | Self::Abs { input } | Self::Delta { input } => {
+                vec![input]
+            }
             Self::ConstantNumber { .. } => vec![],
             Self::Function8 {
                 input_x,
@@ -171,6 +173,29 @@ impl ComponentData for ArithmeticComponent {
         }
     }
 
+    fn output_type(&self, index: usize) -> Option<NodeType> {
+        match self {
+            Self::Add { .. }
+            | Self::Subtract { .. }
+            | Self::Multiply { .. }
+            | Self::Function3 { .. }
+            | Self::Clamp { .. }
+            | Self::Abs { .. }
+            | Self::ConstantNumber { .. }
+            | Self::Delta { .. }
+            | Self::Function8 { .. }
+            | Self::Modulo { .. }
+            | Self::Function1 { .. } => (index == 0).then_some(NodeType::Number),
+            Self::Divide { .. } => match index {
+                0 => Some(NodeType::Number),
+                1 => Some(NodeType::Bool),
+                _ => None,
+            },
+            Self::Equal { .. } => (index == 0).then_some(NodeType::Bool),
+        }
+    }
+
+    /*
     fn inputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
         match self {
             Self::Add { .. }
@@ -215,6 +240,7 @@ impl ComponentData for ArithmeticComponent {
             Self::Add { .. } => {
                 Cow::Borrowed(&[ComponentNode(Cow::Borrowed("A + B"), NodeType::Number)])
             }
+            Self::Add { .. } => Cow::Owned(()),
             Self::Subtract { .. } => {
                 Cow::Borrowed(&[ComponentNode(Cow::Borrowed("A - B"), NodeType::Number)])
             }
@@ -259,4 +285,5 @@ impl ComponentData for ArithmeticComponent {
             }
         }
     }
+    */
 }

@@ -2,7 +2,7 @@ use super::{
     Attrs, ComponentStates, Components, Group, Microprocessor, Node, NodeItem, NodePos, Nodes,
 };
 use crate::{
-    microcontroller::{self, ComponentData as _, Link, PositionedMicrocontroller},
+    microcontroller::{self, ComponentData as _, LinkNode, PositionedMicrocontroller},
     xml_schema::component_object::ObjectInput,
 };
 
@@ -74,9 +74,12 @@ impl ComponentIdManager {
         id
     }
 
-    fn get_object_input(&self, link: &Link) -> Result<ObjectInput, MicroprocessorConversionError> {
+    fn get_object_input(
+        &self,
+        link: &LinkNode,
+    ) -> Result<ObjectInput, MicroprocessorConversionError> {
         match link {
-            Link::Node(n) => Ok(ObjectInput {
+            LinkNode::Node(n) => Ok(ObjectInput {
                 component_id: self
                     .input_node_id_map
                     .get(&(n.as_ptr() as usize))
@@ -84,7 +87,7 @@ impl ComponentIdManager {
                     .ok_or(MicroprocessorConversionError::UnknownInputNode)?,
                 node_index: None,
             }),
-            Link::Component(c, i) => Ok(ObjectInput {
+            LinkNode::Component(c, i) => Ok(ObjectInput {
                 component_id: self
                     .id_map
                     .get(&(c.as_ptr() as usize))
@@ -156,7 +159,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             .zip(components.iter_mut())
             .enumerate()
         {
-            for (j, link) in component.input_links().iter().enumerate() {
+            for (j, link) in component.input_links_node().iter().enumerate() {
                 if let Some(link) = link {
                     item.object
                         .in_map
@@ -177,7 +180,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             .enumerate()
         {
             if let microcontroller::Node::Output(n) = &node.inner
-                && let Some(link) = &n.borrow().input
+                && let Some(link) = &n.borrow().input_link_node()
             {
                 item.object
                     .in_map
