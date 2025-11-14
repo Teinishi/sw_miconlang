@@ -1,8 +1,8 @@
 use super::{
-    Component, OutputNode, PositionedComponent, PositionedMicrocontroller, PositionedNode,
-    UnpositionedMicrocontroller,
+    Component, ComponentPosition, InputNode, Link, Microcontroller, Node, OutputNode,
+    PositionedComponent, PositionedMicrocontroller, PositionedNode, UnpositionedMicrocontroller,
+    components::ComponentData as _,
 };
-use crate::microcontroller::{ComponentPosition, InputNode, Link, Microcontroller, Node};
 
 use std::{
     cell::RefCell,

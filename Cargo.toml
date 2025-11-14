@@ -7,6 +7,7 @@ edition = "2024"
 ariadne = "0.6.0"
 chumsky = "0.11.1"
 derive_more = { version = "2.0.1", features = ["deref"] }
+enum_dispatch = "0.3.13"
 logos = "0.15.1"
 natord = "1.0.9"
 num_enum = "0.7.5"

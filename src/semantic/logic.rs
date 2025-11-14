@@ -1,6 +1,6 @@
 use crate::{
     compile_error::{CompileError, CompileErrorType},
-    microcontroller::{Component, InputNode, Link, OutputNode},
+    microcontroller::{ArithmeticComponent, Component, InputNode, Link, OutputNode},
     syntax::{AssignmentTarget, BinaryOp, Expr, Spanned, Statement, UnaryOp},
 };
 
@@ -64,12 +64,14 @@ impl<'a> LogicAnalyzer<'a> {
     fn expr_to_components(&mut self, expr: &Spanned<Expr>) -> Result<Link, CompileError<'a>> {
         let l = match &expr.inner {
             Expr::BoolLiteral(_) => todo!(),
-            Expr::IntLiteral(v) => {
-                self.add_component(Component::ConstantNumber { value: *v as f32 }, 0)
-            }
-            Expr::FloatLiteral(v) => {
-                self.add_component(Component::ConstantNumber { value: *v as f32 }, 0)
-            }
+            Expr::IntLiteral(v) => self.add_component(
+                Component::Arithmetic(ArithmeticComponent::ConstantNumber { value: *v as f32 }),
+                0,
+            ),
+            Expr::FloatLiteral(v) => self.add_component(
+                Component::Arithmetic(ArithmeticComponent::ConstantNumber { value: *v as f32 }),
+                0,
+            ),
             Expr::StringLiteral(_) => {
                 return Err(CompileError::new(
                     self.filename,
@@ -108,31 +110,31 @@ impl<'a> LogicAnalyzer<'a> {
             Expr::BinaryOp(op) => {
                 let (component, index) = match op {
                     BinaryOp::Add(lhs, rhs) => (
-                        Component::Add {
+                        Component::Arithmetic(ArithmeticComponent::Add {
                             input_a: Some(self.expr_to_components(lhs)?),
                             input_b: Some(self.expr_to_components(rhs)?),
-                        },
+                        }),
                         0,
                     ),
                     BinaryOp::Sub(lhs, rhs) => (
-                        Component::Subtract {
+                        Component::Arithmetic(ArithmeticComponent::Subtract {
                             input_a: Some(self.expr_to_components(lhs)?),
                             input_b: Some(self.expr_to_components(rhs)?),
-                        },
+                        }),
                         0,
                     ),
                     BinaryOp::Mul(lhs, rhs) => (
-                        Component::Multiply {
+                        Component::Arithmetic(ArithmeticComponent::Multiply {
                             input_a: Some(self.expr_to_components(lhs)?),
                             input_b: Some(self.expr_to_components(rhs)?),
-                        },
+                        }),
                         0,
                     ),
                     BinaryOp::Div(lhs, rhs) => (
-                        Component::Divide {
+                        Component::Arithmetic(ArithmeticComponent::Divide {
                             input_a: Some(self.expr_to_components(lhs)?),
                             input_b: Some(self.expr_to_components(rhs)?),
-                        },
+                        }),
                         0,
                     ),
                 };
@@ -141,10 +143,10 @@ impl<'a> LogicAnalyzer<'a> {
             Expr::UnaryOp(op) => {
                 let (component, index) = match op {
                     UnaryOp::Neg(x) => (
-                        Component::Function1 {
+                        Component::Arithmetic(ArithmeticComponent::Function1 {
                             input_x: Some(self.expr_to_components(x)?),
                             function: "-x".to_owned(),
-                        },
+                        }),
                         0,
                     ),
                 };

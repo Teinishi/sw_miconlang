@@ -2,7 +2,7 @@ use super::{
     Attrs, ComponentStates, Components, Group, Microprocessor, Node, NodeItem, NodePos, Nodes,
 };
 use crate::{
-    microcontroller::{self, Link, PositionedMicrocontroller},
+    microcontroller::{self, ComponentData as _, Link, PositionedMicrocontroller},
     xml_schema::component_object::ObjectInput,
 };
 
@@ -135,7 +135,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             });
 
             // <components_bridge> に追加
-            node_components.push(node.as_xml_item(id));
+            node_components.push(node.to_xml_item(id));
         }
 
         // コンポーネント
@@ -145,7 +145,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             let id = id_manager.add(&component.inner);
 
             // <components> に追加
-            components.push(component.as_xml_item(id));
+            components.push(component.to_xml_item(id));
         }
 
         // コンポーネントの入力接続

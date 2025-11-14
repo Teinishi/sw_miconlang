@@ -1,11 +1,12 @@
-use super::{NodeType, OptionalLink};
+use super::{ComponentData, ComponentNode, NodeType, OptionalLink, single_attr};
+use crate::xml_schema::{ObjectValue, ObjectValueTag};
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 #[expect(dead_code)]
 #[derive(strum::Display, Debug)]
 #[repr(u8)]
-pub enum Component {
+pub enum ArithmeticComponent {
     Add {
         input_a: OptionalLink,
         input_b: OptionalLink,
@@ -73,8 +74,8 @@ pub enum Component {
     },
 }
 
-impl Component {
-    pub fn component_type(&self) -> u8 {
+impl ComponentData for ArithmeticComponent {
+    fn component_type(&self) -> u8 {
         match self {
             Self::Add { .. } => 6,
             Self::Subtract { .. } => 7,
@@ -92,12 +93,7 @@ impl Component {
         }
     }
 
-    #[expect(dead_code)]
-    pub fn width(&self) -> u8 {
-        4
-    }
-
-    pub fn height(&self) -> u8 {
+    fn height(&self) -> u8 {
         match self {
             Self::Clamp { .. }
             | Self::Abs { .. }
@@ -115,7 +111,7 @@ impl Component {
         }
     }
 
-    pub fn input_links(&self) -> Vec<&OptionalLink> {
+    fn input_links(&self) -> Vec<&OptionalLink> {
         match self {
             Self::Add { input_a, input_b }
             | Self::Subtract { input_a, input_b }
@@ -150,8 +146,32 @@ impl Component {
         }
     }
 
-    #[expect(dead_code)]
-    pub fn inputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
+    fn attrs(&self) -> Option<HashMap<String, String>> {
+        match self {
+            Self::Function1 { function, .. }
+            | Self::Function3 { function, .. }
+            | Self::Function8 { function, .. } => Some(single_attr("e", function.to_owned())),
+            _ => None,
+        }
+    }
+
+    fn value_list(&self) -> Option<Vec<(ObjectValueTag, ObjectValue)>> {
+        match self {
+            Self::Clamp { min, max, .. } => Some(vec![
+                (ObjectValueTag::Min, ObjectValue::new(*min)),
+                (ObjectValueTag::Max, ObjectValue::new(*max)),
+            ]),
+            Self::ConstantNumber { value } => {
+                Some(vec![(ObjectValueTag::N, ObjectValue::new(*value))])
+            }
+            Self::Equal { epsilon, .. } => {
+                Some(vec![(ObjectValueTag::E, ObjectValue::new(*epsilon))])
+            }
+            _ => None,
+        }
+    }
+
+    fn inputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
         match self {
             Self::Add { .. }
             | Self::Subtract { .. }
@@ -190,8 +210,7 @@ impl Component {
         }
     }
 
-    #[expect(dead_code)]
-    pub fn outputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
+    fn outputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
         match self {
             Self::Add { .. } => {
                 Cow::Borrowed(&[ComponentNode(Cow::Borrowed("A + B"), NodeType::Number)])
@@ -241,7 +260,3 @@ impl Component {
         }
     }
 }
-
-#[expect(dead_code)]
-#[derive(Clone, Debug)]
-pub struct ComponentNode<'a>(Cow<'a, str>, NodeType);

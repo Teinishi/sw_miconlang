@@ -165,6 +165,7 @@ pub enum ObjectValueTag {
     N,
     R,
     I,
+    E,
     Min,
     Max,
     Int,
@@ -179,6 +180,7 @@ impl TryFrom<&str> for ObjectValueTag {
             "n" => Ok(Self::N),
             "r" => Ok(Self::R),
             "i" => Ok(Self::I),
+            "e" => Ok(Self::E),
             "min" => Ok(Self::Min),
             "max" => Ok(Self::Max),
             "int" => Ok(Self::Int),
@@ -194,6 +196,7 @@ impl ObjectValueTag {
             Self::N => "n",
             Self::R => "r",
             Self::I => "i",
+            Self::E => "e",
             Self::Min => "min",
             Self::Max => "max",
             Self::Int => "int",
@@ -208,6 +211,15 @@ pub struct ObjectValue {
     pub text: Option<String>,
     #[serde(rename = "@value", skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
+}
+
+impl ObjectValue {
+    pub fn new(value: f32) -> Self {
+        Self {
+            text: Some(value.to_string()),
+            value: (value == 0.0).then_some(value).map(|v| f32::to_string(&v)),
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

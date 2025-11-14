@@ -1,13 +1,13 @@
 mod auto_layout;
-mod component;
+mod components;
 mod link;
 mod node;
 
-pub use component::Component;
+pub use components::{ArithmeticComponent, Component, ComponentData};
 pub use link::{Link, OptionalLink};
 pub use node::{InputNode, Node, NodeInner, NodeMode, NodePosition, NodeType, OutputNode};
 
-use crate::xml_schema::{self, ObjectValue, ObjectValueTag};
+use crate::xml_schema;
 
 use derive_more::Deref;
 use std::{collections::BTreeMap, rc::Rc};
@@ -58,7 +58,7 @@ pub struct PositionedNode {
 }
 
 impl PositionedNode {
-    pub fn as_xml_item(&self, id: u32) -> xml_schema::ComponentItem {
+    pub fn to_xml_item(&self, id: u32) -> xml_schema::ComponentItem {
         xml_schema::ComponentItem {
             component_type: self.microcontroller_bridge_type(),
             object: xml_schema::ComponentObject {
@@ -79,30 +79,19 @@ pub struct PositionedComponent {
 }
 
 impl PositionedComponent {
-    pub fn as_xml_item(&self, id: u32) -> xml_schema::ComponentItem {
-        let value_list = match &*self.inner {
-            Component::ConstantNumber { value } => {
-                vec![(ObjectValueTag::N, object_value(*value))]
-            }
-            _ => vec![],
-        };
-
+    pub fn to_xml_item(&self, id: u32) -> xml_schema::ComponentItem {
         xml_schema::ComponentItem {
             component_type: option_u8(self.component_type()),
             object: xml_schema::ComponentObject {
                 id,
+                attrs: self.inner.attrs(),
                 pos: option_component_pos(self.position.clone()),
-                value_list,
-                ..Default::default()
+                inc: None,
+                items: None,
+                in_map: BTreeMap::new(),
+                value_list: self.inner.value_list().unwrap_or_default(),
             },
         }
-    }
-}
-
-fn object_value(value: f32) -> ObjectValue {
-    ObjectValue {
-        text: Some(value.to_string()),
-        value: option_f32(value).map(|v| f32::to_string(&v)),
     }
 }
 
