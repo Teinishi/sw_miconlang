@@ -73,7 +73,6 @@ pub enum Component {
     },
 }
 
-#[expect(dead_code)]
 impl Component {
     pub fn component_type(&self) -> u8 {
         match self {
@@ -93,6 +92,7 @@ impl Component {
         }
     }
 
+    #[expect(dead_code)]
     pub fn width(&self) -> u8 {
         4
     }
@@ -150,6 +150,7 @@ impl Component {
         }
     }
 
+    #[expect(dead_code)]
     pub fn inputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
         match self {
             Self::Add { .. }
@@ -189,6 +190,7 @@ impl Component {
         }
     }
 
+    #[expect(dead_code)]
     pub fn outputs(&self) -> Cow<'static, [ComponentNode<'static>]> {
         match self {
             Self::Add { .. } => {

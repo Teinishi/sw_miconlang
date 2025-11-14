@@ -2,7 +2,7 @@ use super::OptionalLink;
 
 use derive_more::Deref;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 use strum::EnumIs;
 
 #[derive(TryFromPrimitive, IntoPrimitive, EnumIs, Clone, Copy, Debug)]
@@ -26,7 +26,7 @@ pub enum NodeType {
     // Rope = 8,
 }
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct NodePosition {
     pub x: u8,
     pub z: u8,
@@ -62,7 +62,7 @@ pub struct OutputNode {
 #[derive(Debug)]
 pub enum Node {
     Input(Rc<InputNode>),
-    Output(Rc<OutputNode>),
+    Output(Rc<RefCell<OutputNode>>),
 }
 
 impl Node {
@@ -71,7 +71,7 @@ impl Node {
     }
 
     pub fn new_output(inner: NodeInner) -> Self {
-        Self::Output(Rc::new(OutputNode { inner, input: None }))
+        Self::Output(Rc::new(RefCell::new(OutputNode { inner, input: None })))
     }
 
     pub fn mode(&self) -> NodeMode {
@@ -81,31 +81,31 @@ impl Node {
         }
     }
 
-    pub fn label(&self) -> &String {
+    pub fn label_owned(&self) -> String {
         match self {
-            Self::Input(n) => &n.label,
-            Self::Output(n) => &n.label,
+            Self::Input(n) => n.label.to_owned(),
+            Self::Output(n) => n.borrow().label.to_owned(),
         }
     }
 
-    pub fn description(&self) -> &String {
+    pub fn description_owned(&self) -> String {
         match self {
-            Self::Input(n) => &n.description,
-            Self::Output(n) => &n.description,
+            Self::Input(n) => n.description.to_owned(),
+            Self::Output(n) => n.borrow().description.to_owned(),
         }
     }
 
-    pub fn node_type(&self) -> &NodeType {
+    pub fn node_type(&self) -> NodeType {
         match self {
-            Self::Input(n) => &n.node_type,
-            Self::Output(n) => &n.node_type,
+            Self::Input(n) => n.node_type,
+            Self::Output(n) => n.borrow().node_type,
         }
     }
 
-    pub fn position(&self) -> &NodePosition {
+    pub fn position(&self) -> NodePosition {
         match self {
-            Self::Input(n) => &n.position,
-            Self::Output(n) => &n.position,
+            Self::Input(n) => n.position,
+            Self::Output(n) => n.borrow().position,
         }
     }
 

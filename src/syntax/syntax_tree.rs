@@ -7,7 +7,6 @@ pub struct Spanned<T> {
     pub span: std::ops::Range<usize>,
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum BinaryOp {
     Add(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
@@ -16,7 +15,6 @@ pub enum BinaryOp {
     Div(Box<Spanned<Expr>>, Box<Spanned<Expr>>),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum UnaryOp {
     Neg(Box<Spanned<Expr>>),
@@ -39,12 +37,19 @@ pub enum Expr {
 }
 
 #[derive(Debug)]
+pub enum AssignmentTarget {
+    Ident(String),
+    Inputs,
+    Outputs,
+    FieldAccess(Box<Spanned<AssignmentTarget>>, String),
+}
+
+#[derive(Debug)]
 pub struct Assignment {
-    pub target: Spanned<Expr>,
+    pub target: Spanned<AssignmentTarget>,
     pub value: Spanned<Expr>,
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum Statement {
     Assignment(Spanned<Assignment>),

@@ -7,31 +7,26 @@ use crate::{
 };
 
 use std::{
+    cell::RefCell,
     collections::{HashMap, HashSet, VecDeque},
     rc::Rc,
 };
 
-#[derive(Default, Debug)]
-pub(super) struct Interface {
-    inputs: HashMap<String, Rc<InputNode>>,
-    outputs: HashMap<String, Rc<OutputNode>>,
-}
-
 #[derive(Debug)]
 pub(super) struct InterfaceAnalyzer<'a> {
+    filename: &'a str,
     inputs: bool,
     outputs: bool,
     node_placement: NodePlacement,
-    filename: &'a str,
 }
 
 impl<'a> InterfaceAnalyzer<'a> {
     pub(super) fn new(filename: &'a str, size: Option<(u8, u8)>) -> Self {
         Self {
+            filename,
             inputs: false,
             outputs: false,
             node_placement: NodePlacement::new(size),
-            filename,
         }
     }
 
@@ -77,9 +72,39 @@ impl<'a> InterfaceAnalyzer<'a> {
         }
     }
 
-    pub(super) fn layout(self) -> ((u8, u8), Vec<(String, Node)>) {
-        self.node_placement.layout()
+    pub(super) fn layout(self) -> Interface {
+        let (size, name_nodes) = self.node_placement.layout();
+
+        let mut inputs = HashMap::new();
+        let mut outputs = HashMap::new();
+        let mut nodes = Vec::with_capacity(name_nodes.len());
+        for (name, node) in name_nodes {
+            match &node {
+                Node::Input(n) => {
+                    inputs.insert(name, n.clone());
+                }
+                Node::Output(n) => {
+                    outputs.insert(name, n.clone());
+                }
+            }
+            nodes.push(node);
+        }
+
+        Interface {
+            size,
+            inputs,
+            outputs,
+            nodes,
+        }
     }
+}
+
+#[derive(Debug)]
+pub(super) struct Interface {
+    pub(super) size: (u8, u8),
+    pub(super) inputs: HashMap<String, Rc<InputNode>>,
+    pub(super) outputs: HashMap<String, Rc<RefCell<OutputNode>>>,
+    pub(super) nodes: Vec<Node>,
 }
 
 fn analyze_node<'a>(

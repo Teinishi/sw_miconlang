@@ -3,7 +3,7 @@ mod component_object;
 mod component_states;
 pub mod conversion;
 pub use attrs::Attrs;
-pub use component_object::ComponentObject;
+pub use component_object::{ComponentObject, ObjectValue, ObjectValueTag};
 pub use component_states::ComponentStates;
 
 use serde::{Deserialize, Serialize};

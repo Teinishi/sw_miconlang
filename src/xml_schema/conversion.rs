@@ -3,13 +3,10 @@ use super::{
 };
 use crate::{
     microcontroller::{self, Link, PositionedMicrocontroller},
-    xml_schema::{ComponentItem, ComponentObject, ComponentPos, component_object::ObjectInput},
+    xml_schema::component_object::ObjectInput,
 };
 
-use std::{
-    collections::{BTreeMap, HashMap},
-    rc::Rc,
-};
+use std::{collections::HashMap, rc::Rc};
 
 // デフォルトなら None 、それ以外なら Some でラップ
 fn to_option<T: PartialEq>(value: T, default: T) -> Option<T> {
@@ -32,10 +29,6 @@ fn option_usize(value: usize) -> Option<usize> {
     to_option(value, 0)
 }
 
-fn option_f32(value: f32) -> Option<f32> {
-    to_option(value, 0.0)
-}
-
 fn option_node_pos(value: microcontroller::NodePosition) -> Option<NodePos> {
     if value.x == 0 && value.z == 0 {
         None
@@ -43,17 +36,6 @@ fn option_node_pos(value: microcontroller::NodePosition) -> Option<NodePos> {
         Some(NodePos {
             x: option_u8(value.x),
             z: option_u8(value.z),
-        })
-    }
-}
-
-fn option_component_pos(value: microcontroller::ComponentPosition) -> Option<ComponentPos> {
-    if value.x == 0 && value.y == 0 {
-        None
-    } else {
-        Some(ComponentPos {
-            x: option_f32(0.25 * (value.x as f32)),
-            y: option_f32(0.25 * (value.y as f32)),
         })
     }
 }
@@ -144,25 +126,16 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
                 id: node_id_counter,
                 component_id: id,
                 node: Node {
-                    label: option_string(node.label().to_string()),
+                    label: option_string(node.label_owned()),
                     mode: option_u8(node.mode().into()),
-                    node_type: option_u8((*node.node_type()).into()),
-                    description: option_string(node.description().to_string()),
-                    position: option_node_pos(node.position().clone()),
+                    node_type: option_u8(node.node_type().into()),
+                    description: option_string(node.description_owned()),
+                    position: option_node_pos(node.position()),
                 },
             });
 
             // <components_bridge> に追加
-            let in_map = BTreeMap::new();
-            node_components.push(ComponentItem {
-                component_type: node.microcontroller_bridge_type(),
-                object: ComponentObject {
-                    id,
-                    pos: option_component_pos(node.component_position.clone()),
-                    in_map,
-                    ..Default::default()
-                },
-            });
+            node_components.push(node.as_xml_item(id));
         }
 
         // コンポーネント
@@ -172,14 +145,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             let id = id_manager.add(&component.inner);
 
             // <components> に追加
-            components.push(ComponentItem {
-                component_type: option_u8(component.component_type()),
-                object: ComponentObject {
-                    id,
-                    pos: option_component_pos(component.position.clone()),
-                    ..Default::default()
-                },
-            });
+            components.push(component.as_xml_item(id));
         }
 
         // コンポーネントの入力接続
@@ -211,7 +177,7 @@ impl TryFrom<&PositionedMicrocontroller> for Microprocessor {
             .enumerate()
         {
             if let microcontroller::Node::Output(n) = &node.inner
-                && let Some(link) = &n.input
+                && let Some(link) = &n.borrow().input
             {
                 item.object
                     .in_map

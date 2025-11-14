@@ -27,6 +27,9 @@ pub enum CompileErrorType {
     },
     FieldAlreadyDeclared,   // todo: 先にどこで定義されているか表示できるように
     ElementAlreadyDeclared, // todo: 先にどこで定義されているか表示できるように
+    StringInLogic,
+    FieldAccessOnly,
+    OutputsInExpression,
 }
 
 impl CompileErrorType {
@@ -63,6 +66,9 @@ impl CompileErrorType {
             Self::UnknownType { .. } => "Unknown Type",
             Self::FieldAlreadyDeclared => "Field Already Declared",
             Self::ElementAlreadyDeclared => "Element Already Declared",
+            Self::StringInLogic => "String in Logic",
+            Self::FieldAccessOnly => "Field Access Only",
+            Self::OutputsInExpression => "Outputs in Expression",
         }
     }
 
@@ -113,6 +119,15 @@ impl CompileErrorType {
                 .with_color(Color::Red),
             Self::ElementAlreadyDeclared => label
                 .with_message("This element is already declared")
+                .with_color(Color::Red),
+            Self::StringInLogic => label
+                .with_message("Cannot use string in logic")
+                .with_color(Color::Red),
+            Self::FieldAccessOnly => label
+                .with_message("Use with a field access by a dot")
+                .with_color(Color::Red),
+            Self::OutputsInExpression => label
+                .with_message("Keyword `outputs` is only valid for assignment target")
                 .with_color(Color::Red),
         }
     }

@@ -5,6 +5,7 @@ use super::{
 use crate::microcontroller::{ComponentPosition, InputNode, Link, Microcontroller, Node};
 
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, HashMap, HashSet},
     rc::{Rc, Weak},
 };
@@ -121,8 +122,8 @@ impl From<&Rc<InputNode>> for ComponentKey {
     }
 }
 
-impl From<&Rc<OutputNode>> for ComponentKey {
-    fn from(value: &Rc<OutputNode>) -> Self {
+impl From<&Rc<RefCell<OutputNode>>> for ComponentKey {
+    fn from(value: &Rc<RefCell<OutputNode>>) -> Self {
         Self::OutputNode(rc_key(value))
     }
 }
@@ -204,7 +205,7 @@ impl GraphConnection {
 
         for node in nodes {
             if let Node::Output(n) = node
-                && let Some(link) = &n.input
+                && let Some(link) = &n.borrow().input
             {
                 s.link_left(n.into(), link);
             }

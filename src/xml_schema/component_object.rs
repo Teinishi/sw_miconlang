@@ -205,9 +205,9 @@ impl ObjectValueTag {
 #[serde(deny_unknown_fields)]
 pub struct ObjectValue {
     #[serde(rename = "@text", skip_serializing_if = "Option::is_none")]
-    text: Option<String>,
+    pub text: Option<String>,
     #[serde(rename = "@value", skip_serializing_if = "Option::is_none")]
-    value: Option<String>,
+    pub value: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

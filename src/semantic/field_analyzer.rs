@@ -1,21 +1,21 @@
 use crate::{
     compile_error::{CompileError, CompileErrorType},
-    syntax::{Assignment, Expr, Spanned},
+    syntax::{Assignment, AssignmentTarget, Expr, Spanned},
 };
 
 use std::collections::HashSet;
 
 #[derive(Debug)]
 pub(super) struct FieldAnalyzer<'a> {
-    known_field: HashSet<String>,
     filename: &'a str,
+    known_field: HashSet<String>,
 }
 
 impl<'a> FieldAnalyzer<'a> {
     pub(super) fn new(filename: &'a str) -> Self {
         Self {
-            known_field: HashSet::new(),
             filename,
+            known_field: HashSet::new(),
         }
     }
 
@@ -27,7 +27,7 @@ impl<'a> FieldAnalyzer<'a> {
     where
         F: FnOnce(&String, &Spanned<Expr>) -> Result<bool, CompileError<'a>>,
     {
-        if let Expr::Ident(ident) = &assignment.target.inner {
+        if let AssignmentTarget::Ident(ident) = &assignment.target.inner {
             if self.known_field.contains(ident) {
                 return Err(CompileError::new(
                     self.filename,

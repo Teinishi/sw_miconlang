@@ -118,8 +118,29 @@ where
     .labelled("expression");
 
     // field = expr
-    let assignment = expr
-        .clone()
+    let assignment_target = choice((
+        just(Token::Inputs).map_with(|_, e| Spanned {
+            inner: AssignmentTarget::Inputs,
+            span: e.span(),
+        }),
+        just(Token::Outputs).map_with(|_, e| Spanned {
+            inner: AssignmentTarget::Outputs,
+            span: e.span(),
+        }),
+        ident.map_with(|name, e| Spanned {
+            inner: AssignmentTarget::Ident(name),
+            span: e.span(),
+        }),
+    ))
+    .clone()
+    .foldl_with(
+        just(Token::Dot).ignore_then(ident).repeated(),
+        |lhs, rhs, e| Spanned {
+            inner: AssignmentTarget::FieldAccess(Box::new(lhs), rhs),
+            span: e.span(),
+        },
+    );
+    let assignment = assignment_target
         .then_ignore(just(Token::Assignment))
         .then(expr)
         .map_with(|(target, value), e| Spanned {
