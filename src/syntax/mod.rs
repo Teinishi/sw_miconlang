@@ -6,16 +6,107 @@ pub use syntax_tree::*;
 use chumsky::{
     IterParser, Parser,
     error::Rich,
-    extra,
     input::Input,
     prelude::{choice, just, recursive},
     select,
 };
 
-pub fn parser<'src, I>()
--> impl Parser<'src, I, Spanned<File>, extra::Err<Rich<'src, I::Token, I::Span>>>
+type Span = std::ops::Range<usize>;
+
+macro_rules! parser_trait {
+    ($l: lifetime, $i: ty, $t: ty) => {
+        impl Parser<$l, $i, $t, chumsky::extra::Err<Rich<$l, <$i>::Token, <$i>::Span>>> + Clone
+    };
+}
+
+fn ident_parser<'src, I>() -> parser_trait!('src, I, String)
 where
-    I: Input<'src, Token = Token, Span = std::ops::Range<usize>>,
+    I: Input<'src, Token = Token, Span = Span>,
+{
+    select! { Token::Ident(v) => v }.labelled("identifier")
+}
+
+fn assignment_parser<'src, I>(
+    expr: parser_trait!('src, I, Spanned<Expr>),
+) -> parser_trait!('src, I, Spanned<Assignment>)
+where
+    I: Input<'src, Token = Token, Span = Span>,
+{
+    // 代入文
+    let assignment_target = choice((
+        just(Token::Inputs).map_with(|_, e| Spanned {
+            inner: AssignmentTarget::Inputs,
+            span: e.span(),
+        }),
+        just(Token::Outputs).map_with(|_, e| Spanned {
+            inner: AssignmentTarget::Outputs,
+            span: e.span(),
+        }),
+        ident_parser().map_with(|name, e| Spanned {
+            inner: AssignmentTarget::Ident(name),
+            span: e.span(),
+        }),
+    ))
+    .clone()
+    .foldl_with(
+        just(Token::Dot).ignore_then(ident_parser()).repeated(),
+        |lhs, rhs, e| Spanned {
+            inner: AssignmentTarget::FieldAccess(Box::new(lhs), rhs),
+            span: e.span(),
+        },
+    );
+    assignment_target
+        .then_ignore(just(Token::Assignment))
+        .then(expr.clone())
+        .map_with(|(target, value), e| Spanned {
+            inner: Assignment { target, value },
+            span: e.span(),
+        })
+}
+
+fn statement_parser<'src, I>(
+    expr: parser_trait!('src, I, Spanned<Expr>),
+) -> parser_trait!('src, I, Spanned<Statement>)
+where
+    I: Input<'src, Token = Token, Span = Span>,
+{
+    // 変数宣言
+    let let_definition = just(Token::Let)
+        .ignore_then(ident_parser())
+        .then_ignore(just(Token::Assignment))
+        .then(expr.clone())
+        .map_with(|(name, value), e| Spanned {
+            inner: Statement::Let(name, value),
+            span: e.span(),
+        });
+
+    // 文
+    choice((
+        let_definition,
+        assignment_parser(expr).map_with(|assignment, e| Spanned {
+            inner: Statement::Assignment(assignment),
+            span: e.span(),
+        }),
+    ))
+    .labelled("statement")
+}
+
+fn block_parser<'src, I>(
+    expr: parser_trait!('src, I, Spanned<Expr>),
+) -> parser_trait!('src, I, (Vec<Spanned<Statement>>, Option<Spanned<Expr>>))
+where
+    I: Input<'src, Token = Token, Span = Span>,
+{
+    statement_parser(expr.clone())
+        .repeated()
+        .collect::<Vec<_>>()
+        .then(expr.or_not())
+        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+}
+
+pub fn parser<'src, I>() -> parser_trait!('src, I, Spanned<File>)
+where
+    I: Input<'src, Token = Token, Span = Span>,
 {
     // 構文解析
     let ident = select! { Token::Ident(v) => v }.labelled("identifier");
@@ -36,8 +127,8 @@ where
     .labelled("literal");
 
     // 式
-    let expr = recursive(|p| {
-        let parenthesized = p
+    let expr = recursive(|r_expr| {
+        let parenthesized = r_expr
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
@@ -53,6 +144,13 @@ where
             }),
             ident_expr,
             parenthesized,
+            block_parser(r_expr).map_with(|(statements, return_value), e| Spanned {
+                inner: Expr::Block {
+                    statements,
+                    return_value: return_value.map(Box::new),
+                },
+                span: e.span(),
+            }),
         ));
 
         let field_access = atom.clone().foldl_with(
@@ -117,64 +215,12 @@ where
     })
     .labelled("expression");
 
-    // field = expr
-    let assignment_target = choice((
-        just(Token::Inputs).map_with(|_, e| Spanned {
-            inner: AssignmentTarget::Inputs,
-            span: e.span(),
-        }),
-        just(Token::Outputs).map_with(|_, e| Spanned {
-            inner: AssignmentTarget::Outputs,
-            span: e.span(),
-        }),
-        ident.map_with(|name, e| Spanned {
-            inner: AssignmentTarget::Ident(name),
-            span: e.span(),
-        }),
-    ))
-    .clone()
-    .foldl_with(
-        just(Token::Dot).ignore_then(ident).repeated(),
-        |lhs, rhs, e| Spanned {
-            inner: AssignmentTarget::FieldAccess(Box::new(lhs), rhs),
-            span: e.span(),
-        },
-    );
-    let assignment = assignment_target
-        .then_ignore(just(Token::Assignment))
-        .then(expr.clone())
-        .map_with(|(target, value), e| Spanned {
-            inner: Assignment { target, value },
-            span: e.span(),
-        });
-
-    // 変数宣言
-    let let_definition = just(Token::Let)
-        .ignore_then(ident)
-        .then_ignore(just(Token::Assignment))
-        .then(expr)
-        .map_with(|(name, value), e| Spanned {
-            inner: Statement::Let(name, value),
-            span: e.span(),
-        });
-
-    // 文
-    let statement = choice((
-        let_definition,
-        assignment.clone().map_with(|assignment, e| Spanned {
-            inner: Statement::Assignment(assignment),
-            span: e.span(),
-        }),
-    ))
-    .labelled("statement");
-
     // name: type { field = expr }
-    let interface_node = ident
+    let interface_node = ident_parser()
         .then_ignore(just(Token::Colon))
-        .then(ident)
+        .then(ident_parser())
         .then(
-            assignment
-                .clone()
+            assignment_parser(expr.clone())
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LBrace), just(Token::RBrace))
@@ -236,7 +282,7 @@ where
     // logic {...}
     let logic = just(Token::Logic)
         .ignore_then(
-            statement
+            statement_parser(expr.clone())
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LBrace), just(Token::RBrace)),
@@ -249,10 +295,10 @@ where
 
     // microcontroller Name {...}
     let microcontroller = just(Token::Microcontroller)
-        .ignore_then(ident)
+        .ignore_then(ident_parser())
         .then(
             choice((
-                assignment.map_with(|assignment, e| Spanned {
+                assignment_parser(expr).map_with(|assignment, e| Spanned {
                     inner: MicrocontrollerElement::Field(assignment),
                     span: e.span(),
                 }),

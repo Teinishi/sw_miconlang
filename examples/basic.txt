@@ -13,7 +13,10 @@ microcontroller BasicExample {
     }
 
     logic {
-        let tmp = inputs.a + inputs.b / 2
+        let tmp = {
+            let hoge = inputs.a + inputs.b / 2
+            hoge * 2
+        }
         outputs.c = tmp * tmp
     }
 }

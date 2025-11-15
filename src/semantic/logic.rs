@@ -205,6 +205,7 @@ impl<'a> LogicAnalyzer<'a> {
                 };
                 self.add_component(component, index, &expr.span)?
             }
+            Expr::Block { .. } => todo!(),
         };
 
         Ok(l)

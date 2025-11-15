@@ -35,6 +35,7 @@ pub(super) fn evaluate_expr<'a>(
         Expr::FieldAccess(_, _) => todo!(),
         Expr::BinaryOp(_) => todo!(),
         Expr::UnaryOp(_) => todo!(),
+        Expr::Block { .. } => todo!(),
     };
     Ok(EvaluatedValue {
         inner,
