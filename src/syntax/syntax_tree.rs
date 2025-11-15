@@ -52,6 +52,7 @@ pub struct Assignment {
 
 #[derive(Debug)]
 pub enum Statement {
+    Let(String, Spanned<Expr>),
     Assignment(Spanned<Assignment>),
 }
 

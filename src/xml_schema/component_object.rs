@@ -217,7 +217,7 @@ impl ObjectValue {
     pub fn new(value: f32) -> Self {
         Self {
             text: Some(value.to_string()),
-            value: (value == 0.0).then_some(value).map(|v| f32::to_string(&v)),
+            value: (value != 0.0).then_some(value).map(|v| f32::to_string(&v)),
         }
     }
 }

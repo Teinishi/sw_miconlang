@@ -142,29 +142,42 @@ where
     );
     let assignment = assignment_target
         .then_ignore(just(Token::Assignment))
-        .then(expr)
+        .then(expr.clone())
         .map_with(|(target, value), e| Spanned {
             inner: Assignment { target, value },
             span: e.span(),
         });
 
+    // 変数宣言
+    let let_definition = just(Token::Let)
+        .ignore_then(ident)
+        .then_ignore(just(Token::Assignment))
+        .then(expr)
+        .map_with(|(name, value), e| Spanned {
+            inner: Statement::Let(name, value),
+            span: e.span(),
+        });
+
     // 文
-    let statement = assignment
-        .clone()
-        .map_with(|assignment, e| Spanned {
+    let statement = choice((
+        let_definition,
+        assignment.clone().map_with(|assignment, e| Spanned {
             inner: Statement::Assignment(assignment),
             span: e.span(),
-        })
-        .labelled("statement");
+        }),
+    ))
+    .labelled("statement");
 
     // name: type { field = expr }
     let interface_node = ident
         .then_ignore(just(Token::Colon))
         .then(ident)
         .then(
-            just(Token::LBrace)
-                .ignore_then(assignment.clone().repeated().collect::<Vec<_>>())
-                .then_ignore(just(Token::RBrace))
+            assignment
+                .clone()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
                 .or_not(),
         )
         .map_with(|((name, type_name), fields), e| Spanned {
@@ -178,9 +191,13 @@ where
 
     // inputs {...}
     let inputs = just(Token::Inputs)
-        .ignore_then(just(Token::LBrace))
-        .ignore_then(interface_node.clone().repeated().collect::<Vec<_>>())
-        .then_ignore(just(Token::RBrace))
+        .ignore_then(
+            interface_node
+                .clone()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
         .map_with(|nodes, e| Spanned {
             inner: MicrocontrollerInterface::Inputs(nodes),
             span: e.span(),
@@ -189,9 +206,13 @@ where
 
     // outputs {...}
     let outputs = just(Token::Outputs)
-        .ignore_then(just(Token::LBrace))
-        .ignore_then(interface_node.repeated().collect::<Vec<_>>())
-        .then_ignore(just(Token::RBrace))
+        .ignore_then(
+            interface_node
+                .clone()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
         .map_with(|nodes, e| Spanned {
             inner: MicrocontrollerInterface::Outputs(nodes),
             span: e.span(),
@@ -200,9 +221,12 @@ where
 
     // interface {...}
     let microcontroller_interface = just(Token::Interface)
-        .ignore_then(just(Token::LBrace))
-        .ignore_then(choice((inputs, outputs)).repeated().collect::<Vec<_>>())
-        .then_ignore(just(Token::RBrace))
+        .ignore_then(
+            choice((inputs, outputs))
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
         .map_with(|interface, e| Spanned {
             inner: MicrocontrollerElement::Interface(interface),
             span: e.span(),
@@ -211,9 +235,12 @@ where
 
     // logic {...}
     let logic = just(Token::Logic)
-        .ignore_then(just(Token::LBrace))
-        .ignore_then(statement.repeated().collect::<Vec<_>>())
-        .then_ignore(just(Token::RBrace))
+        .ignore_then(
+            statement
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
         .map_with(|statements, e| Spanned {
             inner: MicrocontrollerElement::Logic(statements),
             span: e.span(),
@@ -223,7 +250,6 @@ where
     // microcontroller Name {...}
     let microcontroller = just(Token::Microcontroller)
         .ignore_then(ident)
-        .then_ignore(just(Token::LBrace))
         .then(
             choice((
                 assignment.map_with(|assignment, e| Spanned {
@@ -234,9 +260,9 @@ where
                 logic,
             ))
             .repeated()
-            .collect::<Vec<_>>(),
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
-        .then_ignore(just(Token::RBrace))
         .map_with(|(name, elements), e| Spanned {
             inner: Element::Microcontroller { name, elements },
             span: e.span(),

@@ -52,6 +52,7 @@ impl<'a> LogicAnalyzer<'a> {
                         errors.push(err);
                     }
                 }
+                Statement::Let(ident, value) => todo!(),
             }
         }
     }

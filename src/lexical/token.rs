@@ -20,6 +20,8 @@ pub enum Token {
     Tooltips,
     #[token("logic")]
     Logic,
+    #[token("let")]
+    Let,
 
     #[token("{")]
     LBrace,
