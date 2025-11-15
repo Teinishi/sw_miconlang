@@ -31,13 +31,15 @@ pub enum CompileErrorType {
     FieldAccessOnly,
     OutputsInExpression,
     NodeDoesNotExist {
-        //component: Component,
         component_str: String,
         index: usize,
     },
     IncompatibleNodeType {
         expected_type: NodeType,
         found_type: NodeType,
+    },
+    UnknownName {
+        name: String,
     },
 }
 
@@ -80,6 +82,7 @@ impl CompileErrorType {
             Self::OutputsInExpression => "Outputs in Expression",
             Self::NodeDoesNotExist { .. } => "Node Does Not Exist",
             Self::IncompatibleNodeType { .. } => "Incompatible Node Type",
+            Self::UnknownName { .. } => "Unknown Name",
         }
     }
 
@@ -157,6 +160,9 @@ impl CompileErrorType {
                     "Type `{}` expected, `{}` found",
                     expected_type, found_type
                 ))
+                .with_color(Color::Red),
+            Self::UnknownName { name } => label
+                .with_message(format!("Name `{}` is unknwon", name))
                 .with_color(Color::Red),
         }
     }

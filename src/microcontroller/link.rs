@@ -7,7 +7,7 @@ use crate::{
 use derive_more::Deref;
 use std::rc::{Rc, Weak};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum LinkNode {
     Node(Weak<InputNode>),
     Component(Weak<Component>, usize),
@@ -23,22 +23,22 @@ impl LinkNode {
     }
 }
 
-#[derive(Deref, Default, Debug)]
+#[derive(Deref, Clone, Default, Debug)]
 pub struct BoolLink(Option<LinkNode>);
 
-#[derive(Deref, Default, Debug)]
+#[derive(Deref, Clone, Default, Debug)]
 pub struct NumberLink(Option<LinkNode>);
 
-#[derive(Deref, Default, Debug)]
+#[derive(Deref, Clone, Default, Debug)]
 pub struct CompositeLink(Option<LinkNode>);
 
-#[derive(Deref, Default, Debug)]
+#[derive(Deref, Clone, Default, Debug)]
 pub struct VideoLink(Option<LinkNode>);
 
-#[derive(Deref, Default, Debug)]
+#[derive(Deref, Clone, Default, Debug)]
 pub struct AudioLink(Option<LinkNode>);
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Link {
     Bool(BoolLink),
     Number(NumberLink),

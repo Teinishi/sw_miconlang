@@ -8,11 +8,33 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 type Span = std::ops::Range<usize>;
 
+#[derive(Default, Debug)]
+struct Context {
+    variables: HashMap<String, Link>,
+}
+
+impl Context {
+    fn define_variable(&mut self, ident: String, link: Link) {
+        self.variables.insert(ident, link);
+    }
+
+    fn get_variable(&self, ident: &String) -> Result<Link, CompileErrorType> {
+        if let Some(link) = self.variables.get(ident) {
+            Ok(link.clone())
+        } else {
+            Err(CompileErrorType::UnknownName {
+                name: ident.clone(),
+            })
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(super) struct LogicAnalyzer<'a> {
     filename: &'a str,
     inputs: HashMap<String, Rc<InputNode>>,
     outputs: HashMap<String, Rc<RefCell<OutputNode>>>,
+    context: Context,
     pub(super) components: Vec<Rc<Component>>,
 }
 
@@ -26,6 +48,7 @@ impl<'a> LogicAnalyzer<'a> {
             filename,
             inputs,
             outputs,
+            context: Context::default(),
             components: Vec::new(),
         }
     }
@@ -52,7 +75,14 @@ impl<'a> LogicAnalyzer<'a> {
                         errors.push(err);
                     }
                 }
-                Statement::Let(ident, value) => todo!(),
+                Statement::Let(ident, value) => {
+                    let link = self.expr_to_components(value);
+                    if let Err(err) = link {
+                        errors.push(err);
+                        continue;
+                    }
+                    self.context.define_variable(ident.clone(), link.unwrap());
+                }
             }
         }
     }
@@ -99,7 +129,10 @@ impl<'a> LogicAnalyzer<'a> {
                     CompileErrorType::StringInLogic,
                 ));
             }
-            Expr::Ident(_) => todo!(),
+            Expr::Ident(ident) => self
+                .context
+                .get_variable(ident)
+                .map_err(|err| CompileError::new(self.filename, expr.span.clone(), err))?,
             Expr::Inputs => {
                 return Err(CompileError::new(
                     self.filename,

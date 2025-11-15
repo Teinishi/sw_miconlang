@@ -20,7 +20,6 @@ pub enum UnaryOp {
     Neg(Box<Spanned<Expr>>),
 }
 
-#[expect(dead_code)]
 #[derive(Debug)]
 pub enum Expr {
     BoolLiteral(bool),
