@@ -66,7 +66,7 @@ pub enum Token {
     Int(i64),
     #[regex(r"[+-]?(?:(?:\d+\.\d*|\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)", |lex| lex.slice().parse::<f64>().unwrap())]
     Float(f64),
-    #[regex(r#""([^"\\\x00-\x1F]|\\(["\\bnfrt/]|u[a-fA-F0-9]{4}))*""#, |lex| serde_json::from_str::<String>(lex.slice()).unwrap())]
+    #[regex(r#"(?:"(?:\\["'\\nrt]|[\x00-\x7F&&[^"\\]])*"|'(?:\\["'\\]|[\x00-\x7F&&[^'\\nrt]])*')"#, |lex| parse_string(lex.slice()).unwrap())]
     String(String),
 }
 
@@ -93,4 +93,37 @@ fn parse_int(s: &str) -> Result<i64, std::num::ParseIntError> {
         n = -n;
     }
     Ok(n)
+}
+
+fn parse_string(s: &str) -> Option<String> {
+    let bytes = s.as_bytes();
+    if bytes.len() < 2 {
+        return None;
+    }
+
+    let mut out = String::with_capacity(bytes.len() - 2);
+    let mut i = 1;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'\\' {
+            let next = bytes[i + 1];
+            match next {
+                b'\\' => out.push('\\'),
+                b'"' => out.push('"'),
+                b'\'' => out.push('\''),
+                b'n' => out.push('\n'),
+                b'r' => out.push('\r'),
+                b't' => out.push('\t'),
+                _ => {
+                    out.push('\\');
+                    out.push(next as char);
+                }
+            }
+            i += 2;
+        } else {
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    Some(out)
 }
