@@ -1,8 +1,9 @@
 use logos::Logos;
 
 #[derive(Logos, Debug, PartialEq, PartialOrd, Clone)]
-#[logos(skip r"[ \t\r\n\f]+")] // ホワイトスペースを無視
-#[logos(skip r"//[^\n]*")] // コメントを無視
+#[logos(skip r"[ \t\r\n\f]+")]
+#[logos(skip r"//[^\n]*")] // 1行コメント
+#[logos(skip r"/\*(?:[^*]|\*[^/])*\*/")] // ブロックコメント
 pub enum Token {
     #[token("composite")]
     Composite,
