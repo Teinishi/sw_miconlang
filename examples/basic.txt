@@ -17,6 +17,6 @@ microcontroller BasicExample {
             let hoge = inputs.a + inputs.b / 2
             hoge * 2
         }
-        outputs.c = tmp * tmp
+        outputs.c = abs(tmp) * tmp
     }
 }

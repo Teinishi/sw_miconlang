@@ -104,16 +104,10 @@ where
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
 }
 
-pub fn parser<'src, I>() -> parser_trait!('src, I, Spanned<File>)
+fn expr_parser<'src, I>() -> parser_trait!('src, I, Spanned<Expr>)
 where
     I: Input<'src, Token = Token, Span = Span>,
 {
-    // 構文解析
-    let ident = select! { Token::Ident(v) => v }.labelled("identifier");
-    let ident_expr = ident.map_with(|name, e| Spanned {
-        inner: Expr::Ident(name),
-        span: e.span(),
-    });
     let literal = select! {
         Token::Bool(v) => Expr::BoolLiteral(v),
         Token::Int(v) => Expr::IntLiteral(v),
@@ -126,8 +120,7 @@ where
     })
     .labelled("literal");
 
-    // 式
-    let expr = recursive(|r_expr| {
+    recursive(|r_expr| {
         let parenthesized = r_expr
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen));
@@ -142,7 +135,10 @@ where
                 inner: Expr::Outputs,
                 span: e.span(),
             }),
-            ident_expr,
+            ident_parser().map_with(|name, e| Spanned {
+                inner: Expr::Ident(name),
+                span: e.span(),
+            }),
             parenthesized,
             block_parser(r_expr).map_with(|(statements, return_value), e| Spanned {
                 inner: Expr::Block {
@@ -154,20 +150,36 @@ where
         ));
 
         let field_access = atom.clone().foldl_with(
-            just(Token::Dot).ignore_then(ident).repeated(),
+            just(Token::Dot).ignore_then(ident_parser()).repeated(),
             |lhs, rhs, e| Spanned {
                 inner: Expr::FieldAccess(Box::new(lhs), rhs),
                 span: e.span(),
             },
         );
 
-        // 単項演算 (-)
-        let unary = just(Token::Minus)
-            .repeated()
-            .foldr_with(field_access, |_op, rhs, e| Spanned {
-                inner: Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs))),
+        // 関数呼び出し
+        let func_call = ident_parser()
+            .then(
+                field_access
+                    .clone()
+                    .separated_by(just(Token::Comma))
+                    .allow_trailing()
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(Token::LParen), just(Token::RParen)),
+            )
+            .map_with(|(func_name, args), e| Spanned {
+                inner: Expr::FunctionCall(func_name, args),
                 span: e.span(),
             });
+
+        // 単項演算 (-)
+        let unary =
+            just(Token::Minus)
+                .repeated()
+                .foldr_with(func_call.or(field_access), |_op, rhs, e| Spanned {
+                    inner: Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs))),
+                    span: e.span(),
+                });
 
         // 二項演算 (* /)
         let binary_1 = unary.clone().foldl_with(
@@ -213,14 +225,21 @@ where
 
         tuple.or(binary_2)
     })
-    .labelled("expression");
+    .labelled("expression")
+}
 
+fn interface_parser<'src, I>(
+    expr: parser_trait!('src, I, Spanned<Expr>),
+) -> parser_trait!('src, I, Spanned<MicrocontrollerElement>)
+where
+    I: Input<'src, Token = Token, Span = Span>,
+{
     // name: type { field = expr }
     let interface_node = ident_parser()
         .then_ignore(just(Token::Colon))
         .then(ident_parser())
         .then(
-            assignment_parser(expr.clone())
+            assignment_parser(expr)
                 .repeated()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LBrace), just(Token::RBrace))
@@ -266,7 +285,7 @@ where
         .labelled("outputs");
 
     // interface {...}
-    let microcontroller_interface = just(Token::Interface)
+    just(Token::Interface)
         .ignore_then(
             choice((inputs, outputs))
                 .repeated()
@@ -277,7 +296,18 @@ where
             inner: MicrocontrollerElement::Interface(interface),
             span: e.span(),
         })
-        .labelled("interface");
+        .labelled("interface")
+}
+
+pub fn parser<'src, I>() -> parser_trait!('src, I, Spanned<File>)
+where
+    I: Input<'src, Token = Token, Span = Span>,
+{
+    // 式
+    let expr = expr_parser();
+
+    // interface {...}
+    let interface = interface_parser(expr.clone());
 
     // logic {...}
     let logic = just(Token::Logic)
@@ -302,7 +332,7 @@ where
                     inner: MicrocontrollerElement::Field(assignment),
                     span: e.span(),
                 }),
-                microcontroller_interface,
+                interface,
                 logic,
             ))
             .repeated()

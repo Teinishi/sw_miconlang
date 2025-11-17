@@ -33,6 +33,7 @@ pub enum Expr {
     FieldAccess(Box<Spanned<Expr>>, String),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),
+    FunctionCall(String, Vec<Spanned<Expr>>),
     Block {
         statements: Vec<Spanned<Statement>>,
         return_value: Option<Box<Spanned<Expr>>>,

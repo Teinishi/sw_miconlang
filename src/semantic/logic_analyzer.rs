@@ -217,6 +217,7 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
                 self.context.pop_scope().unwrap();
                 return ret;
             }
+            Expr::FunctionCall(_, _) => todo!(),
         };
 
         match r {

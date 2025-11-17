@@ -36,6 +36,7 @@ pub(super) fn evaluate_expr<'a>(
         Expr::BinaryOp(_) => todo!(),
         Expr::UnaryOp(_) => todo!(),
         Expr::Block { .. } => todo!(),
+        Expr::FunctionCall(_, _) => todo!(),
     };
     Ok(EvaluatedValue {
         inner,
