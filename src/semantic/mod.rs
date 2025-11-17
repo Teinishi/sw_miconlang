@@ -1,12 +1,13 @@
 mod evaluate_expr;
 mod field_analyzer;
 mod interface;
-mod logic;
+//mod logic;
+mod logic_analyzer;
 mod value_type;
 use evaluate_expr::evaluate_expr;
 use field_analyzer::FieldAnalyzer;
 use interface::InterfaceAnalyzer;
-use logic::LogicAnalyzer;
+use logic_analyzer::{Context, LogicAnalyzer};
 pub use value_type::ValueType;
 
 use crate::{
@@ -138,15 +139,22 @@ fn analyze_microcontroller<'a>(
     let interface = interface.layout();
     mc.size = Some(interface.size);
 
-    let mut logic = LogicAnalyzer::new(filename, interface.inputs, interface.outputs);
+    let mut logic_analyzer = LogicAnalyzer::new(
+        Context::new(interface.inputs, interface.outputs),
+        filename,
+        errors,
+    );
     for element in elements {
         if let MicrocontrollerElement::Logic(statements) = &element.inner {
-            logic.statements(statements, errors);
+            for statement in statements {
+                logic_analyzer.statement(statement);
+            }
         }
     }
+    let components = logic_analyzer.into_components();
     if !errors.is_empty() {
         return None;
     }
 
-    Some(mc.into_microcontroller(interface.nodes, logic.components))
+    Some(mc.into_microcontroller(interface.nodes, components))
 }
