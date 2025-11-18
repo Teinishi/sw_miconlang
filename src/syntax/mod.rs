@@ -56,7 +56,7 @@ where
         },
     );
     assignment_target
-        .then_ignore(just(Token::Assignment))
+        .then_ignore(just(Token::Equal))
         .then(expr.clone())
         .map_with(|(target, value), e| Spanned {
             inner: Assignment { target, value },
@@ -73,7 +73,7 @@ where
     // 変数宣言
     let let_definition = just(Token::Let)
         .ignore_then(ident_parser())
-        .then_ignore(just(Token::Assignment))
+        .then_ignore(just(Token::Equal))
         .then(expr.clone())
         .map_with(|(name, value), e| Spanned {
             inner: Statement::Let(name, value),
@@ -109,6 +109,7 @@ where
     I: Input<'src, Token = Token, Span = Span>,
 {
     let literal = select! {
+        Token::Null => Expr::Null,
         Token::Bool(v) => Expr::BoolLiteral(v),
         Token::Int(v) => Expr::IntLiteral(v),
         Token::Float(v) => Expr::FloatLiteral(v),
@@ -125,6 +126,42 @@ where
             .clone()
             .delimited_by(just(Token::LParen), just(Token::RParen));
 
+        // 関数呼び出し
+        let func_call = ident_parser()
+            .then(
+                r_expr
+                    .clone()
+                    .separated_by(just(Token::Comma))
+                    .allow_trailing()
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                    .map_with(|props, e| Spanned {
+                        inner: props,
+                        span: e.span(),
+                    })
+                    .or_not(),
+            )
+            .then(
+                r_expr
+                    .clone()
+                    .separated_by(just(Token::Comma))
+                    .allow_trailing()
+                    .collect::<Vec<_>>()
+                    .delimited_by(just(Token::LParen), just(Token::RParen))
+                    .map_with(|args, e| Spanned {
+                        inner: args,
+                        span: e.span(),
+                    }),
+            )
+            .map_with(|((func_name, props), args), e| Spanned {
+                inner: Expr::FunctionCall {
+                    ident: func_name,
+                    props,
+                    args,
+                },
+                span: e.span(),
+            });
+
         let atom = choice((
             literal,
             just(Token::Inputs).map_with(|_, e| Spanned {
@@ -135,6 +172,7 @@ where
                 inner: Expr::Outputs,
                 span: e.span(),
             }),
+            func_call,
             ident_parser().map_with(|name, e| Spanned {
                 inner: Expr::Ident(name),
                 span: e.span(),
@@ -149,47 +187,32 @@ where
             }),
         ));
 
-        let field_access = atom.clone().foldl_with(
+        // メンバーアクセス
+        let member_access = atom.clone().foldl_with(
             just(Token::Dot).ignore_then(ident_parser()).repeated(),
             |lhs, rhs, e| Spanned {
-                inner: Expr::FieldAccess(Box::new(lhs), rhs),
+                inner: Expr::MemberAccess(Box::new(lhs), rhs),
                 span: e.span(),
             },
         );
 
-        // 関数呼び出し
-        let func_call = ident_parser()
-            .then(
-                field_access
-                    .clone()
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(just(Token::LParen), just(Token::RParen)),
-            )
-            .map_with(|(func_name, args), e| Spanned {
-                inner: Expr::FunctionCall(func_name, args),
+        // 単項演算 (-)
+        let unary = just(Token::Minus)
+            .repeated()
+            .foldr_with(member_access, |_op, rhs, e| Spanned {
+                inner: Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs))),
                 span: e.span(),
             });
 
-        // 単項演算 (-)
-        let unary =
-            just(Token::Minus)
-                .repeated()
-                .foldr_with(func_call.or(field_access), |_op, rhs, e| Spanned {
-                    inner: Expr::UnaryOp(UnaryOp::Neg(Box::new(rhs))),
-                    span: e.span(),
-                });
-
         // 二項演算 (* /)
         let binary_1 = unary.clone().foldl_with(
-            choice((just(Token::Multiply), just(Token::Divide)))
+            choice((just(Token::Asterisk), just(Token::Slash)))
                 .then(unary)
                 .repeated(),
             |lhs, (op, rhs), e| Spanned {
                 inner: match op {
-                    Token::Multiply => Expr::BinaryOp(BinaryOp::Mul(Box::new(lhs), Box::new(rhs))),
-                    Token::Divide => Expr::BinaryOp(BinaryOp::Div(Box::new(lhs), Box::new(rhs))),
+                    Token::Asterisk => Expr::BinaryOp(BinaryOp::Mul(Box::new(lhs), Box::new(rhs))),
+                    Token::Slash => Expr::BinaryOp(BinaryOp::Div(Box::new(lhs), Box::new(rhs))),
                     _ => unreachable!(),
                 },
                 span: e.span(),

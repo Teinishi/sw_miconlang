@@ -22,7 +22,7 @@ impl<'a> CompileError<'a> {
 
     pub fn print(&self, cache: &Source<&str>) {
         Report::build(ReportKind::Error, (self.filename, self.span.clone()))
-            .with_message(format!("Syntax Error: {}", self.error_type.name()))
+            .with_message(self.error_type.name())
             .with_label(
                 self.error_type
                     .create_label(Label::new((self.filename, self.span.clone()))),

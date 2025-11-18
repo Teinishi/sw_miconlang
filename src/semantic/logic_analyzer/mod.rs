@@ -1,8 +1,8 @@
 mod functions;
 mod operators;
-use functions::function_calls;
 use operators::{binary_operation, unary_operation};
 
+use super::evaluate_expr::{EvaluatedValue, evaluate_expr};
 use crate::{
     compile_error::{CompileError, CompileErrorType},
     microcontroller::{ArithmeticComponent, Component, InputNode, Link, OutputNode},
@@ -145,6 +145,7 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
 
     fn expr_to_components(&mut self, expr: &Spanned<Expr>) -> Option<Link> {
         let r = match &expr.inner {
+            Expr::Null => todo!(),
             Expr::BoolLiteral(_) => todo!(),
             Expr::IntLiteral(v) => self.add_component(
                 Component::Arithmetic(ArithmeticComponent::ConstantNumber { value: *v as f32 }),
@@ -159,7 +160,7 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
             Expr::Inputs => Err(CompileErrorType::FieldAccessOnly),
             Expr::Outputs => Err(CompileErrorType::OutputsInExpression),
             Expr::Tuple(_) => todo!(),
-            Expr::FieldAccess(object, field) => match &object.inner {
+            Expr::MemberAccess(object, field) => match &object.inner {
                 Expr::Inputs => self.context.get_input(field).map(Link::node),
                 _ => todo!(),
             },
@@ -179,7 +180,9 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
                 self.context.pop_scope().unwrap();
                 return ret;
             }
-            Expr::FunctionCall(name, args) => function_calls(self, name, args)?,
+            Expr::FunctionCall { ident, props, args } => {
+                self.function_call(ident, props, args, &expr.span)?
+            }
         };
 
         match r {
@@ -191,7 +194,7 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
         }
     }
 
-    fn expr_to_component_typed<T>(&mut self, expr: &Spanned<Expr>) -> Option<T>
+    fn expr_to_typed_link<T>(&mut self, expr: &Spanned<Expr>) -> Option<T>
     where
         T: TryFrom<Link>,
         <T as TryFrom<Link>>::Error: Into<CompileErrorType>,
@@ -206,6 +209,22 @@ impl<'f, 'e> LogicAnalyzer<'f, 'e> {
             }
         } else {
             None
+        }
+    }
+
+    fn evaluate_expr<T>(&mut self, expr: &Spanned<Expr>) -> Option<T>
+    where
+        T: TryFrom<EvaluatedValue<'f>>,
+        <T as TryFrom<EvaluatedValue<'f>>>::Error: Into<CompileError<'f>>,
+    {
+        match evaluate_expr(expr, self.filename)
+            .and_then(|v| T::try_from(v).map_err(|err| err.into()))
+        {
+            Ok(v) => Some(v),
+            Err(err) => {
+                self.errors.push(err);
+                None
+            }
         }
     }
 

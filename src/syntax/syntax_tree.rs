@@ -22,6 +22,7 @@ pub enum UnaryOp {
 
 #[derive(Debug)]
 pub enum Expr {
+    Null,
     BoolLiteral(bool),
     IntLiteral(i64),
     FloatLiteral(f64),
@@ -30,10 +31,14 @@ pub enum Expr {
     Inputs,
     Outputs,
     Tuple(Vec<Spanned<Expr>>),
-    FieldAccess(Box<Spanned<Expr>>, String),
+    MemberAccess(Box<Spanned<Expr>>, String),
     BinaryOp(BinaryOp),
     UnaryOp(UnaryOp),
-    FunctionCall(String, Vec<Spanned<Expr>>),
+    FunctionCall {
+        ident: String,
+        props: Option<Spanned<Vec<Spanned<Expr>>>>,
+        args: Spanned<Vec<Spanned<Expr>>>,
+    },
     Block {
         statements: Vec<Spanned<Statement>>,
         return_value: Option<Box<Spanned<Expr>>>,

@@ -23,6 +23,8 @@ pub enum Token {
     Logic,
     #[token("let")]
     Let,
+    #[token("null")]
+    Null,
 
     #[token("{")]
     LBrace,
@@ -32,24 +34,24 @@ pub enum Token {
     Colon,
     #[token(",")]
     Comma,
-    #[token("[")]
+    /*#[token("[")]
     LBracket,
     #[token("]")]
     RBracket,
     #[token(";")]
-    Semicolon,
+    Semicolon,*/
     #[token(".")]
     Dot,
     #[token("=")]
-    Assignment,
+    Equal,
     #[token("+")]
     Plus,
     #[token("-")]
     Minus,
     #[token("*")]
-    Multiply,
+    Asterisk,
     #[token("/")]
-    Divide,
+    Slash,
     #[token("(")]
     LParen,
     #[token(")")]
@@ -58,8 +60,6 @@ pub enum Token {
     #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
     Ident(String),
 
-    #[token("null")]
-    Null,
     #[token("false", |_| false)]
     #[token("true", |_| true)]
     Bool(bool),

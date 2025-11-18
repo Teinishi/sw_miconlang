@@ -41,6 +41,13 @@ pub enum CompileErrorType {
     UnknownName {
         name: String,
     },
+    LengthMismatch {
+        found_len: usize,
+        expect_str: &'static str,
+    },
+    PropertyRequired {
+        expect_str: &'static str,
+    },
 }
 
 impl CompileErrorType {
@@ -83,6 +90,8 @@ impl CompileErrorType {
             Self::NodeDoesNotExist { .. } => "Node Does Not Exist",
             Self::IncompatibleNodeType { .. } => "Incompatible Node Type",
             Self::UnknownName { .. } => "Unknown Name",
+            Self::LengthMismatch { .. } => "Length Mismatch",
+            Self::PropertyRequired { .. } => "Property Required",
         }
     }
 
@@ -163,6 +172,15 @@ impl CompileErrorType {
                 .with_color(Color::Red),
             Self::UnknownName { name } => label
                 .with_message(format!("Name `{}` is unknwon", name))
+                .with_color(Color::Red),
+            Self::LengthMismatch {
+                found_len,
+                expect_str,
+            } => label
+                .with_message(format!("Expected {}, {} found", expect_str, found_len))
+                .with_color(Color::Red),
+            Self::PropertyRequired { expect_str } => label
+                .with_message(format!("Following properties are required: {}", expect_str))
                 .with_color(Color::Red),
         }
     }

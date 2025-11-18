@@ -12,29 +12,29 @@ pub(super) fn binary_operation(
     let (component, index) = match op {
         BinaryOp::Add(lhs, rhs) => (
             Component::Arithmetic(ArithmeticComponent::Add {
-                input_a: logic_analyzer.expr_to_component_typed(lhs)?,
-                input_b: logic_analyzer.expr_to_component_typed(rhs)?,
+                input_a: logic_analyzer.expr_to_typed_link(lhs)?,
+                input_b: logic_analyzer.expr_to_typed_link(rhs)?,
             }),
             0,
         ),
         BinaryOp::Sub(lhs, rhs) => (
             Component::Arithmetic(ArithmeticComponent::Subtract {
-                input_a: logic_analyzer.expr_to_component_typed(lhs)?,
-                input_b: logic_analyzer.expr_to_component_typed(rhs)?,
+                input_a: logic_analyzer.expr_to_typed_link(lhs)?,
+                input_b: logic_analyzer.expr_to_typed_link(rhs)?,
             }),
             0,
         ),
         BinaryOp::Mul(lhs, rhs) => (
             Component::Arithmetic(ArithmeticComponent::Multiply {
-                input_a: logic_analyzer.expr_to_component_typed(lhs)?,
-                input_b: logic_analyzer.expr_to_component_typed(rhs)?,
+                input_a: logic_analyzer.expr_to_typed_link(lhs)?,
+                input_b: logic_analyzer.expr_to_typed_link(rhs)?,
             }),
             0,
         ),
         BinaryOp::Div(lhs, rhs) => (
             Component::Arithmetic(ArithmeticComponent::Divide {
-                input_a: logic_analyzer.expr_to_component_typed(lhs)?,
-                input_b: logic_analyzer.expr_to_component_typed(rhs)?,
+                input_a: logic_analyzer.expr_to_typed_link(lhs)?,
+                input_b: logic_analyzer.expr_to_typed_link(rhs)?,
             }),
             0,
         ),
@@ -49,7 +49,7 @@ pub(super) fn unary_operation(
     let (component, index) = match op {
         UnaryOp::Neg(x) => (
             Component::Arithmetic(ArithmeticComponent::Function1 {
-                input_x: logic_analyzer.expr_to_component_typed(x)?,
+                input_x: logic_analyzer.expr_to_typed_link(x)?,
                 function: "-x".to_owned(),
             }),
             0,

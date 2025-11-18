@@ -9,6 +9,7 @@ microcontroller BasicExample {
         }
         outputs {
             c: float { name = "Output C" }
+            d: bool { name = "Output D" }
         }
     }
 
@@ -17,6 +18,6 @@ microcontroller BasicExample {
             let hoge = inputs.a + inputs.b / 2
             hoge * 2
         }
-        outputs.c = abs(tmp) * tmp
+        outputs.c = clamp{0.0, 1.0}(tmp * tmp)
     }
 }

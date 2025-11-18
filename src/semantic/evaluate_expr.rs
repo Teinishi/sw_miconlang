@@ -18,6 +18,7 @@ pub(super) fn evaluate_expr<'a>(
     filename: &'a str,
 ) -> Result<EvaluatedValue<'a>, CompileError<'a>> {
     let inner = match &spanned_expr.inner {
+        Expr::Null => todo!(),
         Expr::BoolLiteral(v) => EvaluatedValueInner::Bool(*v),
         Expr::IntLiteral(v) => EvaluatedValueInner::Int(*v),
         Expr::FloatLiteral(v) => EvaluatedValueInner::Float(*v),
@@ -26,17 +27,17 @@ pub(super) fn evaluate_expr<'a>(
         Expr::Inputs => todo!(),
         Expr::Outputs => todo!(),
         Expr::Tuple(items) => {
-            let mut values = Vec::with_capacity(items.len());
+            let mut values: Vec<EvaluatedValue<'_>> = Vec::with_capacity(items.len());
             for item in items {
                 values.push(evaluate_expr(item, filename)?);
             }
             EvaluatedValueInner::Tuple(values)
         }
-        Expr::FieldAccess(_, _) => todo!(),
+        Expr::MemberAccess(_, _) => todo!(),
         Expr::BinaryOp(_) => todo!(),
         Expr::UnaryOp(_) => todo!(),
         Expr::Block { .. } => todo!(),
-        Expr::FunctionCall(_, _) => todo!(),
+        Expr::FunctionCall { .. } => todo!(),
     };
     Ok(EvaluatedValue {
         inner,
@@ -177,6 +178,14 @@ impl<'a> TryFrom<EvaluatedValue<'a>> for f64 {
                 },
             )),
         }
+    }
+}
+
+impl<'a> TryFrom<EvaluatedValue<'a>> for f32 {
+    type Error = CompileError<'a>;
+
+    fn try_from(value: EvaluatedValue<'a>) -> Result<Self, Self::Error> {
+        f64::try_from(value).map(|v| v as f32)
     }
 }
 
